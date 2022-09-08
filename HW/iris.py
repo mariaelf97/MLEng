@@ -17,7 +17,7 @@ iris_data = pd.read_csv(
 # changing pandas df to numpy array
 iris_data_numpy = iris_data.to_numpy()
 
-# calculating summary statistics using numpy
+# calculating summary statistics max,min,median and average using numpy
 print("maximum value for each attribute : ", np.max(iris_data_numpy[:, 0:3], axis=0))
 print("minimum value for each attribute : ", np.min(iris_data_numpy[:, 0:3], axis=0))
 print("Average value for each attribute : ", np.mean(iris_data_numpy[:, 0:3], axis=0))

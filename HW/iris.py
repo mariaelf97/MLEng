@@ -132,7 +132,6 @@ def predict_model():
 
 
 def main():
-    import_iris_data()
     summary_stat()
     iris_plots()
     predict_model()

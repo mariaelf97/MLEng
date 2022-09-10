@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import collections
 import os
 import sys
 
@@ -10,7 +11,10 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
+
+collections.Callable = collections.abc.Callable
 
 
 # importing dataset as a pandas DF
@@ -67,7 +71,7 @@ def iris_plots():
     iris_box_plot.show()
 
 
-def train_scale():
+def test_train():
     # RF model
     # defining features dataset without labels
     iris_data = import_iris_data()
@@ -78,45 +82,60 @@ def train_scale():
     train_features, test_features, train_labels, test_labels = train_test_split(
         features, labels, test_size=0.2, random_state=0
     )
-    # Feature scaling
-    scaler = StandardScaler()
-    train_features = scaler.fit_transform(train_features)
-    test_features = scaler.transform(test_features)
     return train_features, test_features, train_labels, test_labels
 
 
-def RF_model():
-    # training the algorithm
-    train_features, test_features, train_labels, test_labels = train_scale()
-    rf = RandomForestClassifier(n_estimators=20, random_state=0)
-    rf.fit(train_features, train_labels)
-    # Use the forest's predict method on the test data
-    predictions = rf.predict(test_features)
-    # evaluating the algorithm
-    print(confusion_matrix(test_labels, predictions))
-    print(classification_report(test_labels, predictions))
-    print(accuracy_score(test_labels, predictions))
+def predict_model():
+    train_features, test_features, train_labels, test_labels = test_train()
+    rf_model_pipeline = Pipeline(
+        steps=[
+            ("scaling", StandardScaler()),
+            ("random_forest", RandomForestClassifier(n_estimators=20, random_state=0)),
+        ]
+    )
+    rf_model_pipeline.fit(train_features, train_labels)
+    rf_model_pipeline_predictions = rf_model_pipeline.predict(test_features)
+    print("-----RF Model Prediction------")
+    print(
+        "confustion matrix is : ",
+        confusion_matrix(test_labels, rf_model_pipeline_predictions),
+    )
+    print(
+        "calssification report is :",
+        classification_report(test_labels, rf_model_pipeline_predictions),
+    )
+    print(
+        "Accuracy score is:", accuracy_score(test_labels, rf_model_pipeline_predictions)
+    )
 
-
-# KNN classification
-def KNN_model():
-    train_features, test_features, train_labels, test_labels = train_scale()
-    knn = KNeighborsClassifier(n_neighbors=8)
-    knn.fit(train_features, train_labels)
-    knn_predict = knn.predict(test_features)
-    knn.score(test_features, test_labels)
-    # evaluating the algorithm
-    print(confusion_matrix(test_labels, knn_predict))
-    print(classification_report(test_labels, knn_predict))
-    print(accuracy_score(test_labels, knn_predict))
+    KNN_model_pipeline = Pipeline(
+        steps=[
+            ("scaling", StandardScaler()),
+            ("KNN", KNeighborsClassifier(n_neighbors=8)),
+        ]
+    )
+    KNN_model_pipeline.fit(train_features, train_labels)
+    KNN_model_pipeline_predictions = rf_model_pipeline.predict(test_features)
+    print("-----KNN Model Prediction------")
+    print(
+        "confustion matrix is : ",
+        confusion_matrix(test_labels, KNN_model_pipeline_predictions),
+    )
+    print(
+        "calssification report is :",
+        classification_report(test_labels, KNN_model_pipeline_predictions),
+    )
+    print(
+        "Accuracy score is:",
+        accuracy_score(test_labels, KNN_model_pipeline_predictions),
+    )
 
 
 def main():
     import_iris_data()
     summary_stat()
     iris_plots()
-    RF_model()
-    KNN_model()
+    predict_model()
 
 
 if __name__ == "__main__":

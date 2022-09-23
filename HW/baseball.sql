@@ -25,5 +25,5 @@ select * from (select * , row_number() over (partition by batter order by local_
 drop temporary table if exists last_100_days_batting_per_player;
 create temporary table last_100_days_batting_per_player
 select batter, sum(Hit)/sum(nullif(atBat,0)) as batting_average from last_100_days_per_player group by batter;
---view the table last_100_days_batting_per_player
+-- view the table last_100_days_batting_per_player
 select * from last_100_days_batting_per_player order by batter limit 1,20;

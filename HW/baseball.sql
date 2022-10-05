@@ -1,41 +1,83 @@
 
--- first join the game and batter counts table and save the results as a temporary table
 drop temporary table if exists joined_batter_game;
-create temporary table joined_batter_game
-select game.local_date,batter_counts.batter,batter_counts.game_id,batter_counts.Hit,batter_counts.atBat from batter_counts join game on batter_counts.game_id=game.game_id;
+drop temporary table if exists annual_at_bat_per_player;
+drop temporary table if exists historic_at_bat_per_player;
+drop temporary table if exists last_100_days_per_player;
+drop temporary table if exists last_100_days_rol_avg_per_player;
 
-
--- change batter data type to character because it was integer
-alter table joined_batter_game modify batter varchar(100);
-
+-- first join the game and batter counts table and save the results as a temporary table
+create or replace temporary table joined_batter_game as
+    select
+            g.local_date
+            ,bc.batter
+            ,bc.game_id
+            ,bc.Hit
+            ,bc.atBat
+    from batter_counts bc
+    join game g on bc.game_id=g.game_id
+;
 
 -- calculate annual batting average
-drop temporary table if exists annual_at_bat_per_player;
-create temporary table annual_at_bat_per_player
-select batter,year(local_date) as date_year, sum(Hit)/sum(nullif(atBat,0)) as Average_at_bat from joined_batter_game group by batter,year(local_date) order by year(local_date);
--- view the table annual_at_bat_per_player
-select * from annual_at_bat_per_player order by batter limit 1,20;
+create or replace temporary table annual_at_bat_per_player
+    select
+            jbg.batter
+            ,year(jbg.local_date) as date_year
+            ,sum(jbg.Hit)/sum(nullif(jbg.atBat,0)) as Average_at_bat
+    from joined_batter_game jbg
+    group by jbg.batter, date_year
+    order by date_year
+;
 
 -- calculate historic batting average
-drop temporary table if exists historic_at_bat_per_player;
-create temporary table historic_at_bat_per_player
-select batter, sum(Hit)/sum(nullif(atBat,0)) as Average_at_bat from joined_batter_game group by batter;
--- view the table historic_at_bat_per_player
-select * from historic_at_bat_per_player order by batter limit 1,20;
-
+create or replace temporary table historic_at_bat_per_player
+    select
+            jbg.batter
+            ,sum(jbg.Hit)/sum(nullif(jbg.atBat,0)) as Average_at_bat
+    from joined_batter_game jbg
+    group by jbg.batter
+;
 
 -- calculate last 100 days batting average --
 -- first we create a table with the 99 recent entries for each player --
-drop temporary table if exists last_100_days_per_player;
+create or replace temporary table last_100_days_per_player
+    select *
+    from joined_batter_game jbg
+    partition by batter
+;
+
 create temporary table last_100_days_per_player
-select * from (select * , row_number() over (partition by batter order by local_date desc) as date_rank from joined_batter_game) ranks where date_rank <=99;
--- Then we calculate the running sum for last 99 days (not including the last day) for each player
-drop temporary table if exists last_100_days_running_sum_per_player;
-create temporary table last_100_days_running_sum_per_player
-select batter,local_date,Hit,atBat,sum(atBat) over (partition by batter order by local_date) as sum_atBat,sum(Hit) over (partition by batter order by local_date) as sum_hit from last_100_days_per_player;
--- The last thing we need to do is to divide the hit sum by atBat sum
-drop temporary table if exists last_100_days_running_sum_average_per_player;
-create temporary table last_100_days_running_sum_average_per_player
-select batter,local_date,sum_atBat,sum_hit, sum_hit/nullif(sum_atBat,0) as batting_average from last_100_days_running_sum_per_player;
--- show the results --
-select * from last_100_days_running_sum_average_per_player limit 1,20;
+    select *
+        from(
+        select *
+                ,row_number() over (partition by batter order by local_date desc) as date_rank from joined_batter_game
+         ) ranks
+    where date_rank <=99
+ ;
+
+alter table joined_batter_game add index batter_indx (batter,local_date)
+;
+
+create INDEX batter_indx
+ON joined_batter_game (batter,local_date)
+;
+
+
+create or replace temporary table last_100_days_per_player
+    select    abg1.batter
+            , abg1.local_date
+            , abg1.Hit+sum(coalesce(abg2.Hit,0)) total_Hit
+            , abg1.atBat+sum(coalesce(abg2.atBat,0)) total_atBat
+    from joined_batter_game abg1 force index (batter_indx)
+    left join joined_batter_game abg2 on abg1.batter=abg2.batter
+    and timestampdiff(day,abg1.local_date,abg2.local_date)<=99 and timestampdiff(day,abg1.local_date,abg2.local_date)>0
+    group by abg1.batter,abg1.local_date,abg1.Hit, abg1.atBat
+    order by 1,2
+;
+
+create or replace temporary table last_100_days_rol_avg_per_player
+    select
+            last_100.batter
+            ,sum(last_100.total_Hit)/sum(nullif(last_100.total_atBat,0)) as Average_at_bat
+    from last_100_days_per_player last_100
+    group by last_100.batter
+;

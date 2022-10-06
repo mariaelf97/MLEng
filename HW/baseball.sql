@@ -45,14 +45,6 @@ create or replace temporary table last_100_days_per_player
     partition by batter
 ;
 
-create temporary table last_100_days_per_player
-    select *
-        from(
-        select *
-                ,row_number() over (partition by batter order by local_date desc) as date_rank from joined_batter_game
-         ) ranks
-    where date_rank <=99
- ;
 
 alter table joined_batter_game add index batter_indx (batter,local_date)
 ;

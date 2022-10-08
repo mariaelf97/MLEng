@@ -1,104 +1,79 @@
 import sys
 
-from pyspark.sql import Row,SparkSession
-from pyspark.sql.types import (
-    BooleanType,
-    DoubleType,
-    IntegerType,
-    StringType,
-    StructField,
-    StructType,
-)
+from pyspark import StorageLevel
+from pyspark.ml.feature import SQLTransformer
+from pyspark.sql import SparkSession
+
 
 def main():
-    appName = "Baseball"
+    appName = "baseball mariadb spark"
     master = "local"
-    # Setup Spark
-    spark = SparkSession.builder.master("local[*]").getOrCreate()
+    spark = SparkSession.builder.appName(appName).master(master).getOrCreate()
 
-
-    # Create a column that has all the "words" we want to encode for modeling
-    # Each word must be in an array (hence SPLIT)
-    baseball_df = spark.sql(
-        """
-            create or replace temporary table joined_batter_game as
-                select
-                    g.local_date
-                    ,bc.batter
-                    ,bc.game_id
-                    ,bc.Hit
-                    ,bc.atBat
-            from batter_counts bc
-            join game g on bc.game_id=g.game_id
-;
-        -- calculate annual batting average
-            create or replace temporary table annual_at_bat_per_player
-                select
-                    jbg.batter
-                     ,year(jbg.local_date) as date_year
-                    ,sum(jbg.Hit)/sum(nullif(jbg.atBat,0)) as Average_at_bat
-                from joined_batter_game jbg
-                group by jbg.batter, date_year
-                order by date_year
-;
-
-        -- calculate historic batting average
-            create or replace temporary table historic_at_bat_per_player
-            select
-                jbg.batter
-                ,sum(jbg.Hit)/sum(nullif(jbg.atBat,0)) as Average_at_bat
-            from joined_batter_game jbg
-            group by jbg.batter
-;
-
-        -- calculate last 100 days batting average --
-        -- first we create a table with the 99 recent entries for each player --
-            create or replace temporary table last_100_days_per_player
-            select *
-            from joined_batter_game jbg
-            partition by batter
-;
-
-        alter table joined_batter_game add index batter_indx (batter,local_date)
-;
-
-            create INDEX batter_indx
-            ON joined_batter_game (batter,local_date)
-;
-
-
-            create or replace temporary table last_100_days_per_player
-                select    
-                        abg1.batter
-                        , abg1.local_date
-                        , abg1.Hit+sum(coalesce(abg2.Hit,0)) total_Hit
-                        , abg1.atBat+sum(coalesce(abg2.atBat,0)) total_atBat
-                from joined_batter_game abg1 force index (batter_indx)
-                left join joined_batter_game abg2 on abg1.batter=abg2.batter
-                and timestampdiff(day,abg1.local_date,abg2.local_date)<=99 and timestampdiff(day,abg1.local_date,abg2.local_date)>0
-                group by abg1.batter,abg1.local_date,abg1.Hit, abg1.atBat
-                order by 1,2
-;
-
-create or replace temporary table last_100_days_rol_avg_per_player
-                select
-                    last_100.batter
-                    ,sum(last_100.total_Hit)/sum(nullif(last_100.total_atBat,0)) as Average_at_bat
-                from last_100_days_per_player last_10
-
-                group by last_100.batter
-;
-        """)
-
-    database = "baseball"
-    user = "spark"
+    user = "Spark"
     password = "Maryam"
-    server = "localhost"
-    port = 3306
-    jdbc_url = f"jdbc:mysql://{server}:{port}/{database}?permitMysqlScheme"
+
+    jdbc_url = "jdbc:mysql://localhost:3306/baseball?permitMysqlScheme"
     jdbc_driver = "org.mariadb.jdbc.Driver"
 
-    baseball_df.show()
+    game = (
+        spark.read.format("jdbc")
+        .option("url", jdbc_url)
+        .option("dbtable", "baseball.game")
+        .option("user", user)
+        .option("password", password)
+        .option("driver", jdbc_driver)
+        .load()
+    )
+
+    game.createOrReplaceTempView("game")
+    game.persist(StorageLevel.DISK_ONLY)
+
+    batter_counts = (
+        spark.read.format("jdbc")
+        .option("url", jdbc_url)
+        .option("dbtable", "baseball.batter_counts")
+        .option("user", user)
+        .option("password", password)
+        .option("driver", jdbc_driver)
+        .load()
+    )
+
+    batter_counts.createOrReplaceTempView("batter_counts")
+    batter_counts.persist(StorageLevel.DISK_ONLY)
+
+    joined_table = spark.sql(
+        """
+    select
+            g.local_date
+            , bc.batter
+            , bc.game_id
+            , bc.Hit
+            , bc.atBat
+    from batter_counts bc
+    join game g on bc.game_id = g.game_id
+    ;
+    """
+    )
+    joined_table.createOrReplaceTempView("joined_table")
+    joined_table.persist(StorageLevel.DISK_ONLY)
+
+    SQL_QUERY = """
+        select    abg1.batter
+                , abg1.local_date
+                , abg1.Hit+sum(coalesce(abg2.Hit,0)) total_Hit
+                , abg1.atBat+sum(coalesce(abg2.atBat,0)) total_atBat
+        from joined_batter_game abg1 force index (batter_indx)
+        left join joined_batter_game abg2 on abg1.batter=abg2.batter
+        and timestampdiff(day,abg1.local_date,abg2.local_date)<=99 and timestampdiff(day,abg1.local_date,abg2.local_date)>0
+        group by abg1.batter,abg1.local_date,abg1.Hit, abg1.atBat
+        order by 1,2
+    ;
+    """
+
+    sqlTrans = SQLTransformer().setStatement(SQL_QUERY)
+    sqlTrans.transform(joined_table).show()
+
 
 if __name__ == "__main__":
     sys.exit(main())

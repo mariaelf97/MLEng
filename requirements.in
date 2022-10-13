@@ -1,4 +1,16 @@
+black
+flake8==5.0.4
+isort[requirements]
+mariadb
+matplotlib
+nose
 numpy
 pandas
-scikit-learn
+pip-tools
+pre-commit
 plotly
+pyspark
+pyspark-stubs
+scikit-learn
+seaborn
+sqlalchemy

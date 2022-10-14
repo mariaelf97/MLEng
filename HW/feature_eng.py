@@ -1,38 +1,53 @@
+import math
 import sys
 
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 import statsmodels.api as sm
-
-# user input to receive dataset
-# https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data
-dataset = pd.read_csv(
-    "https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data"
-)
-# specifying the response variable
-response_name = " <=50K"
-# Don't include response in other variables, we don't want to plot response vs response.
-col_name = [col for col in dataset.columns if col != response_name]
+import statsmodels.formula.api as smf
+from sklearn.ensemble import RandomForestRegressor
 
 
-def predictor_response_plots(col_name):
-
-    if (dataset[response_name].dtypes == "object") & (
-        dataset[col_name].dtypes == "object"
+def define_boolean(dataset, col):
+    boolean = [0, 1]
+    if (isinstance(dataset[col], int) | isinstance(dataset[col], float)) & (
+        all(p == boolean for p in dataset[col])
     ):
+        return True
+    else:
+        return False
+
+
+def define_cat(dataset, col):
+    if isinstance(dataset[col], object):
+        return True
+    else:
+        return False
+
+
+def define_numeric(dataset, col):
+    if (isinstance(dataset[col], int) | isinstance(dataset[col], float)) & (
+        define_boolean(dataset, col)
+    ) == False:
+        return True
+    else:
+        return False
+
+
+def predictor_response_plots(dataset, predictor, response):
+
+    if (define_cat(dataset, predictor)) & (define_cat(dataset, response)):
         # Heatmap ( categorical variables vs categorical response)
-        cat_freq = pd.crosstab(index=dataset[col_name], columns=dataset[response_name])
+        cat_freq = pd.crosstab(index=dataset[predictor], columns=dataset[response])
         sns.heatmap(data=cat_freq, annot=True, fmt=".1f")
         plt.show()
-    if (dataset[response_name].dtypes == "object") & (
-        dataset[col_name].dtypes == "int64"
-    ):
+    if (define_numeric(dataset, predictor)) & (define_cat(dataset, response)):
         # first convert the dataset to wide format
         sns.kdeplot(
             data=dataset,
-            x=col_name,
-            hue=response_name,
+            x=predictor,
+            hue=response,
             cut=0,
             fill=True,
             common_norm=False,
@@ -40,63 +55,74 @@ def predictor_response_plots(col_name):
         )
         plt.show()
 
-    if (dataset[response_name].dtypes == "int64") & (
-        dataset[col_name].dtypes == "int64"
-    ):
-        plt.scatter(dataset[col_name], dataset[response_name])
+    if (define_numeric(dataset, predictor)) & (define_numeric(dataset, response)):
+        plt.scatter(dataset[predictor], dataset[response])
         plt.show()
 
-    if (dataset[response_name].dtypes == "int64") & (
-        dataset[col_name].dtypes == "object"
-    ):
-        sns.violinplot(x=dataset[col_name], y=dataset[response_name])
+    if (define_cat(dataset, predictor)) & (define_numeric(dataset, response)):
+        sns.violinplot(x=dataset[predictor], y=dataset[response])
         plt.show()
 
 
-def regression_model(col_name):
+def regression_model(dataset, predictor, response):
     # when the response is categorical (logistic regression)
-    if (dataset[response_name].dtypes == "object") & (
-        dataset[col_name].dtypes == "object"
-    ):
-        x = pd.get_dummies(dataset[col_name])
-        y = pd.get_dummies(dataset[response_name])
-        log_reg = sm.Logit(x, y).fit()
-        print(log_reg.summary)
+    if define_numeric(dataset, predictor) & define_numeric(response):
+        x = dataset[predictor]
+        y = dataset[response]
+        predictor = sm.api.add_constant(x)
+        linear_regression_model = sm.api.OLS(y, predictor)
+        linear_regression_model_fitted = linear_regression_model.fit()
+        print(predictor)
+        print(linear_regression_model_fitted.summary())
+        # Get the stats
+        t_value = round(linear_regression_model_fitted.tvalues[1], 6)
+        p_value = "{:.6e}".format(linear_regression_model_fitted.pvalues[1])
+    if define_numeric(dataset, predictor) & define_cat(response):
+        x = dataset[predictor]
+        y = dataset[response]
+        predictor = smf.api.add_constant(x)
+        Logit_model = smf.api.logit(y, predictor)
+        Logit_model_fitted = Logit_model.fit()
+        print(predictor)
+        print(Logit_model_fitted.summary())
+        # Get the stats
+        t_value = round(Logit_model_fitted.tvalues[1], 6)
+        p_value = "{:.6e}".format(Logit_model_fitted.pvalues[1])
+    else:
+        print("no model associated")
 
-    if (dataset[response_name].dtypes == "object") & (
-        dataset[col_name].dtypes == "int64"
-    ):
-        x = (dataset[col_name] - dataset[col_name].min()) / (
-            dataset[col_name].max() - dataset[col_name].min()
-        )
-        y = pd.get_dummies(dataset[response_name])
-        log_reg = sm.Logit(x.astype(float), y).fit()
-        print(log_reg.summary)
 
-    # when the response is continuous (regression)
-    if (dataset[response_name].dtypes == "int64") & (
-        dataset[col_name].dtypes == "int64"
-    ):
-        x = dataset[col_name]
-        y = dataset[response_name]
-        x = sm.add_constant(x)
-        model = sm.OLS(y, x).fit()
-        print(model.summary)
-    if (dataset[response_name].dtypes == "int64") & (
-        dataset[col_name].dtypes == "object"
-    ):
-        x = pd.get_dummies(dataset[col_name])
-        y = dataset[response_name]
-        x = sm.add_constant(x)
-        model = sm.OLS(y, x).fit()
-        print(model.summary)
+def diff_mean_response(dataset, predictor, response):
+    # determining number of bins
+    n_bin = math.ceil(math.sqrt(len(dataset[predictor])))
+    bin_width = (max(dataset[predictor]) - min(dataset[predictor])) / n_bin
+
+
+def random_forest_var_imp(dataset, predictor, response):
+    rf = RandomForestRegressor(n_estimators=100)
+    x = dataset[predictor]
+    y = dataset[response]
+    rf.fit(x, y)
+    sorted_idx = rf.feature_importances_.argsort()
+    plt.barh(dataset.columns[sorted_idx], rf.feature_importances_[sorted_idx])
+    plt.xlabel("Random Forest Feature Importance")
 
 
 def main():
+    # user input to receive dataset
+
+    dataset = pd.read_csv(
+        "https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data"
+    )
+    # specifying the response variable
+    response_name = " <=50K"
+    # Don't include response in other variables, we don't want to plot response vs response.
+    col_name = [col for col in dataset.columns if col != response_name]
+
+    for col in col_name:
+        predictor_response_plots(dataset, col, response_name)
     # for i in range(1, len(col_name)):
-    #    predictor_response_plots(col_name[i])
-    for i in range(1, len(col_name)):
-        regression_model(col_name[i])
+    #  regression_model(col_name[1])
 
 
 if __name__ == "__main__":

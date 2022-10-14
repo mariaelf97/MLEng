@@ -3,6 +3,7 @@ flake8==5.0.4
 isort[requirements]
 mariadb
 matplotlib
+math
 nose
 numpy
 pandas
@@ -14,4 +15,8 @@ pyspark-stubs
 scikit-learn
 seaborn
 sqlalchemy
+sklearn
+statsmodels
+
+
 

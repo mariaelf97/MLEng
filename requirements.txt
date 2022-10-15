@@ -56,19 +56,25 @@ numpy==1.23.4
     #   contourpy
     #   matplotlib
     #   pandas
+    #   patsy
     #   scikit-learn
     #   scipy
     #   seaborn
+    #   statsmodels
 packaging==21.3
     # via
     #   build
     #   matplotlib
+    #   statsmodels
 pandas==1.5.0
     # via
     #   -r requirements.in
     #   seaborn
+    #   statsmodels
 pathspec==0.10.1
     # via black
+patsy==0.5.3
+    # via statsmodels
 pep517==0.13.0
     # via build
 pillow==9.2.0
@@ -110,12 +116,18 @@ pyyaml==6.0
 scikit-learn==1.1.2
     # via -r requirements.in
 scipy==1.9.2
-    # via scikit-learn
+    # via
+    #   scikit-learn
+    #   statsmodels
 seaborn==0.12.0
     # via -r requirements.in
 six==1.16.0
-    # via python-dateutil
+    # via
+    #   patsy
+    #   python-dateutil
 sqlalchemy==1.4.41
+    # via -r requirements.in
+statsmodels==0.13.2
     # via -r requirements.in
 tenacity==8.1.0
     # via plotly

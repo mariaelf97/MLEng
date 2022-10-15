@@ -2,10 +2,10 @@ import math
 import sys
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import statsmodels.api as sm
-import statsmodels.formula.api as smf
 from sklearn.ensemble import RandomForestRegressor
 
 
@@ -69,8 +69,8 @@ def regression_model(dataset, predictor, response):
     if define_numeric(dataset, predictor) & define_numeric(response):
         x = dataset[predictor]
         y = dataset[response]
-        predictor = sm.api.add_constant(x)
-        linear_regression_model = sm.api.OLS(y, predictor)
+        cons = sm.add_constant(x)
+        linear_regression_model = sm.OLS(y, cons)
         linear_regression_model_fitted = linear_regression_model.fit()
         print(predictor)
         print(linear_regression_model_fitted.summary())
@@ -80,14 +80,15 @@ def regression_model(dataset, predictor, response):
     if define_numeric(dataset, predictor) & define_cat(response):
         x = dataset[predictor]
         y = dataset[response]
-        predictor = smf.api.add_constant(x)
-        Logit_model = smf.api.logit(y, predictor)
-        Logit_model_fitted = Logit_model.fit()
+        cons = sm.add_constant(x)
+        y = pd.get_dummies(y)
+        logistic_regression_model = sm.Logit(y, cons)
+        logistic_regression_model_fitted = logistic_regression_model.fit()
         print(predictor)
-        print(Logit_model_fitted.summary())
+        print(logistic_regression_model_fitted.summary())
         # Get the stats
-        t_value = round(Logit_model_fitted.tvalues[1], 6)
-        p_value = "{:.6e}".format(Logit_model_fitted.pvalues[1])
+        t_value = round(logistic_regression_model_fitted.tvalues[1], 6)
+        p_value = "{:.6e}".format(logistic_regression_model_fitted.pvalues[1])
     else:
         print("no model associated")
 
@@ -98,9 +99,10 @@ def diff_mean_response(dataset, predictor, response):
     bin_width = (max(dataset[predictor]) - min(dataset[predictor])) / n_bin
 
 
-def random_forest_var_imp(dataset, predictor, response):
+def random_forest_var_imp(dataset, response):
     rf = RandomForestRegressor(n_estimators=100)
-    x = dataset[predictor]
+
+    x = dataset[dataset.select_dtypes([np.number]).columns]
     y = dataset[response]
     rf.fit(x, y)
     sorted_idx = rf.feature_importances_.argsort()
@@ -111,11 +113,9 @@ def random_forest_var_imp(dataset, predictor, response):
 def main():
     # user input to receive dataset
 
-    dataset = pd.read_csv(
-        "https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data"
-    )
+    dataset = pd.read_csv("/Users/maryam/Downloads/archive/House_Rent_Dataset.csv")
     # specifying the response variable
-    response_name = " <=50K"
+    response_name = "Rent"
     # Don't include response in other variables, we don't want to plot response vs response.
     col_name = [col for col in dataset.columns if col != response_name]
 

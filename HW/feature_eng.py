@@ -179,6 +179,10 @@ def diff_mean_response(dataset, predictor, response):
         yaxis_title="response=" + response,
     )
     fig.show()
+    html = binned_pred_resp_counts.to_html()
+    text_file = open("mean_of_response.html", "w")
+    text_file.write(html)
+    text_file.close()
 
 
 def random_forest_var_imp(dataset, response):
@@ -228,7 +232,7 @@ def correlation_matrix(dataset, numeric_columns, categorical_columns):
 
 def main():
     # Dataset loading
-    dataset = pd.read_csv("/home/mahmedi/Downloads/archive(1)/titanic_data.csv")
+    dataset = pd.read_csv("/Users/maryam/Downloads/Titanic-Dataset.csv")
     dataset = dataset.dropna()
     del dataset["Cabin"]
     del dataset["Name"]

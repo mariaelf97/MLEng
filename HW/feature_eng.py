@@ -12,6 +12,7 @@ import scipy.stats as ss
 import statsmodels.api as sm
 from sklearn.ensemble import RandomForestClassifier
 
+
 warnings.simplefilter(action="ignore", category=FutureWarning)
 # This function will return true if the input is categorical
 
@@ -153,25 +154,46 @@ def diff_mean_response(dataset, predictor, response):
     binned_pred_resp = pd.concat(
         [bin_df.reset_index(drop=True), dataset[response]], axis=1
     )
+    # count number of data points in each bin
     counts = binned_pred_resp.groupby(["bins"]).count()
+    # get the mean value of response in each bin
     mean_response = binned_pred_resp.groupby(["bins"]).mean().fillna(0)
+    # merge two dataframes (mean of response and counts per bin)
     binned_pred_resp_counts = pd.concat([counts, mean_response], axis=1)
     binned_pred_resp_counts.reset_index(inplace=True)
-    binned_pred_resp_counts.columns = ["bins", "counts", "response_mean"]
-    binned_pred_resp_counts["bin_median"] = binned_pred_resp_counts.bins.apply(
+    # re-name the columns in the dataframe
+    binned_pred_resp_counts.columns = ["bin_interval", "bin_count", "bin_means"]
+    # get bin center
+    binned_pred_resp_counts["bin_centers"] = binned_pred_resp_counts.bin_interval.apply(
         lambda x: x.mid
     )
+    # get population mean
     binned_pred_resp_counts["population_mean"] = binned_pred_resp_counts[
-        "response_mean"
+        "bin_means"
     ].mean()
-    binned_pred_resp_counts["diff in mean"] = (
-        binned_pred_resp_counts["population_mean"]
-        - binned_pred_resp_counts["response_mean"]
+    # get mean squared difference
+    binned_pred_resp_counts["mean_squared_diff"] = pow(
+        (
+            binned_pred_resp_counts["population_mean"]
+            - binned_pred_resp_counts["bin_means"]
+        ),
+        2,
     )
-    binned_pred_resp_counts["squared diff"] = pow(
-        binned_pred_resp_counts["diff in mean"], 2
+    # get mean squared differences unweighted
+    binned_pred_resp_counts["mean_squared_diff_unweighted"] = binned_pred_resp_counts[
+        "mean_squared_diff"
+    ].sum()
+    # population proportion = bin_count/ N (sample size)
+    binned_pred_resp_counts["population_proportion"] = (
+        binned_pred_resp_counts["bin_count"]
+        / binned_pred_resp_counts["bin_count"].sum()
     )
-    fig = px.bar(binned_pred_resp_counts, x="bin_median", y="counts")
+    # weighted mean square difference = mean square difference * population proportion
+    binned_pred_resp_counts["mean_squared_diff_weighted"] = (
+        binned_pred_resp_counts["mean_squared_diff"]
+        * binned_pred_resp_counts["population_proportion"]
+    )
+    fig = px.bar(binned_pred_resp_counts, x="bin_centers", y="bin_count")
     fig.add_hline(y=binned_pred_resp_counts["response_mean"].mean())
     fig.update_layout(
         title="Difference in mean of response",
@@ -193,11 +215,70 @@ def random_forest_var_imp(dataset, response):
     forest_importances = pd.Series(importances, index=feature_names)
     return forest_importances.sort_values(ascending=False)
 
+def get_correlation(dataset,predictor1,predictor2,bias_correction=True, tschuprow=False):
+    predictor1_cat= define_cat(dataset,predictor1)
+    predictor2_cat= define_cat(dataset,predictor2)
+    if predictor1_cat & predictor2_cat:
+        corr_coeff = np.nan
+        try:
+            crosstab_matrix = pd.crosstab(dataset[predictor1], dataset[predictor2])
+            n_observations = crosstab_matrix.sum().sum()
+
+            yates_correct = True
+            if bias_correction:
+                if crosstab_matrix.shape == (2, 2):
+                    yates_correct = False
+
+            chi2, _, _, _ = ss.chi2_contingency(
+                crosstab_matrix, correction=yates_correct
+            )
+            phi2 = chi2 / n_observations
+
+            # r and c are number of categories of x and y
+            r, c = crosstab_matrix.shape
+            if bias_correction:
+                phi2_corrected = max(0, phi2 - ((r - 1) * (c - 1)) / (n_observations - 1))
+                r_corrected = r - ((r - 1) ** 2) / (n_observations - 1)
+                c_corrected = c - ((c - 1) ** 2) / (n_observations - 1)
+                if tschuprow:
+                    corr_coeff = np.sqrt(
+                        phi2_corrected / np.sqrt((r_corrected - 1) * (c_corrected - 1))
+                    )
+                    return corr_coeff
+                corr_coeff = np.sqrt(
+                    phi2_corrected / min((r_corrected - 1), (c_corrected - 1))
+                )
+                return corr_coeff
+            if tschuprow:
+                corr_coeff = np.sqrt(phi2 / np.sqrt((r - 1) * (c - 1)))
+                return corr_coeff
+            corr_coeff = np.sqrt(phi2 / min((r - 1), (c - 1)))
+            return corr_coeff
+        except Exception as ex:
+            print(ex)
+            if tschuprow:
+                warnings.warn("Error calculating Tschuprow's T", RuntimeWarning)
+            else:
+                warnings.warn("Error calculating Cramer's V", RuntimeWarning)
+            return corr_coeff
+    elif (predictor1 & predictor2 == False) |  (predictor2 & predictor1 == False):
+        categorical_dataset = dataset[categorical_columns]
+        dataset_encoded = categorical_dataset.apply(lambda x: pd.factorize(x)[0])
+        numeric_dataset = dataset[numeric_columns]
+        combined_dataset = pd.concat(
+            [numeric_dataset.reset_index(drop=True), dataset_encoded], axis=1
+        )
+        corr_mat_numeric_cat = combined_dataset.corr()
+
+
 
 def correlation_matrix(dataset, numeric_columns, categorical_columns):
     # Calculate correlation metrics between numeric - numeric predictors
     corr_mat_numeric = dataset[numeric_columns].corr()
-    print(corr_mat_numeric)
+    corr_mat_numeric = corr_mat_numeric.rename_axis(None).rename_axis(None, axis=1)
+    corr_mat_numeric.columns = ['variable1', 'variable2', 'correlation']
+    corr_mat_numeric1 = corr_mat_numeric.stack().reset_index()
+    return corr_mat_numeric1
     # Calculate correlation metrics between categorical - categorical predictors
     cat_var1 = categorical_columns
     cat_var2 = categorical_columns
@@ -218,7 +299,7 @@ def correlation_matrix(dataset, numeric_columns, categorical_columns):
                 )
             )
     chi_test_output = pd.DataFrame(result, columns=["var1", "var2", "coeff"])
-    print(chi_test_output.pivot(index="var1", columns="var2", values="coeff"))
+    #print(chi_test_output.pivot(index="var1", columns="var2", values="coeff"))
     # Calculate correlation metrics between continuous - categorical predictors
     categorical_dataset = dataset[categorical_columns]
     dataset_encoded = categorical_dataset.apply(lambda x: pd.factorize(x)[0])
@@ -227,12 +308,12 @@ def correlation_matrix(dataset, numeric_columns, categorical_columns):
         [numeric_dataset.reset_index(drop=True), dataset_encoded], axis=1
     )
     corr_mat_numeric_cat = combined_dataset.corr()
-    print(corr_mat_numeric_cat)
+    #print(corr_mat_numeric_cat)
 
 
 def main():
     # Dataset loading
-    dataset = pd.read_csv("/Users/maryam/Downloads/Titanic-Dataset.csv")
+    dataset = pd.read_csv("/home/mahmedi/Downloads/archive(1)/titanic_data.csv")
     dataset = dataset.dropna()
     del dataset["Cabin"]
     del dataset["Name"]
@@ -241,7 +322,7 @@ def main():
     # specifying the response variable
     response_name = "Survived"
     # Don't include response in other variables, we don't want to plot response vs response.
-    col_name = [col for col in dataset.columns if col != response_name]
+    # col_name = [col for col in dataset.columns if col != response_name]
     # predictor_dataset = dataset[col_name]
     # Split dataset on predictors in list between categoricals and continuous
     # numeric_columns = predictor_dataset.select_dtypes("number").columns
@@ -253,7 +334,7 @@ def main():
     # create regression models
     # for col in col_name:
     #    regression_model(dataset, col, response_name)
-    diff_mean_response(dataset, col_name[1], response_name)
+    diff_mean_response(dataset, "Age", response_name)
     # variable importance
     # please use if response is binary (0,1)
     # random_forest_var_imp(dataset,reponse_name)

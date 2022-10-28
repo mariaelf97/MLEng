@@ -69,9 +69,6 @@ def predictor_response_plots(dataset, predictor, response):
                 data=go.Violin(
                     y=dataset[response],
                     x=dataset[predictor],
-                    box_visible=True,
-                    line_color="black",
-                    meanline_visible=True,
                     fillcolor="lightseagreen",
                     opacity=0.6,
                     x0=response,
@@ -101,11 +98,11 @@ def regression_model(dataset, predictor, response):
     response_cat = define_cat(dataset, response)
     # when the response is categorical (logistic regression)
     if response_cat:
-        if ("yes" not in dataset[response].unique()) & (predictor_cat):
+        if ("yes" not in dataset[response].unique()) & predictor_cat:
             print("no model associated")
-        elif ("yes" in dataset[response].unique()) & (predictor_cat):
+        elif ("yes" in dataset[response].unique()) & predictor_cat:
             print("no model associated")
-        elif ("yes" in dataset[response].unique()) & (predictor_cat == False):
+        elif ("yes" in dataset[response].unique()) & (not predictor_cat):
             y = change_yes_no_to_binary(dataset, response)
             x = dataset[predictor]
             cons = sm.add_constant(x)
@@ -273,30 +270,44 @@ def get_correlation(
         predictor2_cat & (not predictor1_cat)
     ):
         if predictor1_cat:
-            categorical_dataset = dataset[predictor1]
-            numeric_dataset = dataset[predictor2]
+            categories = dataset[predictor1].to_numpy()
+            measurements = dataset[predictor2].to_numpy()
         else:
-            categorical_dataset = dataset[predictor2]
-            numeric_dataset = dataset[predictor1]
+            categories = dataset[predictor2].to_numpy()
+            measurements = dataset[predictor1].to_numpy()
+
+        fcat, _ = pd.factorize(categories)
+        cat_num = np.max(fcat) + 1
+        y_avg_array = np.zeros(cat_num)
+        n_array = np.zeros(cat_num)
+        for i in range(0, cat_num):
+            cat_measures = measurements[np.argwhere(fcat == i).flatten()]
+            n_array[i] = len(cat_measures)
+            y_avg_array[i] = np.average(cat_measures)
+        y_total_avg = np.sum(np.multiply(y_avg_array, n_array)) / np.sum(n_array)
+        numerator = np.sum(np.multiply(n_array, np.power(np.subtract(y_avg_array, y_total_avg), 2)))
+        denominator = np.sum(np.power(np.subtract(measurements, y_total_avg), 2))
+        if numerator == 0:
+            eta = 0.0
+        else:
+            eta = np.sqrt(numerator / denominator)
+        return eta
 
     else:
         corr = np.corrcoef(dataset[predictor1], dataset[predictor2])[0, 1]
         return corr
 
-
 def correlation_matrix(dataset, numeric_columns, categorical_columns):
     # Calculate correlation metrics between numeric - numeric predictors
     corr_mat_numeric = dataset[numeric_columns].corr()
     corr_mat_numeric = corr_mat_numeric.rename_axis(None).rename_axis(None, axis=1)
-    corr_mat_numeric.columns = ["variable1", "variable2", "correlation"]
-    corr_mat_numeric1 = corr_mat_numeric.stack().reset_index()
     fig = px.imshow(corr_mat_numeric)
-    fig.show()
+    plotly.offline.plot(fig)
     # Calculate correlation metrics between categorical - categorical predictors
     cat_var1 = categorical_columns
     cat_var2 = categorical_columns
-    cat_var_prod = list(product(cat_var1, cat_var2, repeat=1))
-    df_cat_v1 = dataset[(categorical_columns)].dropna()
+    cat_var_prod = list(product(cat_var1, cat_var2))
+    df_cat_v1 = dataset[categorical_columns].dropna()
     result = []
     for i in cat_var_prod:
         if i[0] != i[1]:
@@ -313,7 +324,7 @@ def correlation_matrix(dataset, numeric_columns, categorical_columns):
             )
     chi_test_output = pd.DataFrame(result, columns=["var1", "var2", "coeff"])
     fig = px.imshow(chi_test_output.pivot(index="var1", columns="var2", values="coeff"))
-    fig.show()
+    plotly.offline.plot(fig)
 
     # Calculate correlation metrics between continuous - categorical predictors
     categorical_dataset = dataset[categorical_columns]
@@ -324,17 +335,17 @@ def correlation_matrix(dataset, numeric_columns, categorical_columns):
     )
     corr_mat_numeric_cat = combined_dataset.corr()
     fig = px.imshow(corr_mat_numeric_cat)
-    fig.show()
+    plotly.offline.plot(fig)
 
 
 def main():
     # Dataset loading
-    dataset = pd.read_csv("/Users/maryam/Downloads/Titanic-Dataset.csv")
+    dataset = pd.read_csv("/home/mahmedi/Downloads/archive(1)/titanic_data.csv")
     dataset = dataset.dropna()
     del dataset["Cabin"]
     del dataset["Name"]
     dataset["binary"] = dataset["Survived"].map({1: "yes", 0: "no"})
-
+    get_correlation(dataset, "Sex", "Age", bias_correction=False, tschuprow=True)
     # specifying the response variable
     response_name = "Survived"
     # Don't include response in other variables, we don't want to plot response vs response.
@@ -343,14 +354,13 @@ def main():
     # Split dataset on predictors in list between categoricals and continuous
     # numeric_columns = predictor_dataset.select_dtypes("number").columns
     # categorical_columns = predictor_dataset.select_dtypes("object").columns
-
     # create plots
     # for col in col_name:
     #    predictor_response_plots(dataset, col, response_name)
     # create regression models
     # for col in col_name:
     #    regression_model(dataset, col, response_name)
-    diff_mean_response(dataset, "Age", response_name)
+    #diff_mean_response(dataset, "Age", response_name)
     # variable importance
     # please use if response is binary (0,1)
     # random_forest_var_imp(dataset,reponse_name)

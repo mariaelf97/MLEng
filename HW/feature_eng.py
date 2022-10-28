@@ -12,8 +12,9 @@ import scipy.stats as ss
 import statsmodels.api as sm
 from sklearn.ensemble import RandomForestClassifier
 
-
 warnings.simplefilter(action="ignore", category=FutureWarning)
+
+
 # This function will return true if the input is categorical
 
 
@@ -142,7 +143,7 @@ def regression_model(dataset, predictor, response):
             # p_value = "{:.6e}".format(linear_regression_model_fitted.pvalues[1])
 
 
-def diff_mean_response(dataset, predictor, response):
+def diff_mean_response(dataset, predictor, response, figure=True):
     # Optimal number of bins
     n_bin = math.ceil(math.sqrt(len(dataset[predictor])))
     # Get bin start points (lower bound)
@@ -200,11 +201,13 @@ def diff_mean_response(dataset, predictor, response):
         xaxis_title="Predictor=" + predictor,
         yaxis_title="response=" + response,
     )
-    fig.show()
-    html = binned_pred_resp_counts.to_html()
-    text_file = open("mean_of_response.html", "w")
-    text_file.write(html)
-    text_file.close()
+    if figure:
+        fig.show()
+    else:
+        html = binned_pred_resp_counts.to_html()
+        text_file = open("mean_of_response.html", "w")
+        text_file.write(html)
+        text_file.close()
 
 
 def random_forest_var_imp(dataset, response):
@@ -215,9 +218,12 @@ def random_forest_var_imp(dataset, response):
     forest_importances = pd.Series(importances, index=feature_names)
     return forest_importances.sort_values(ascending=False)
 
-def get_correlation(dataset,predictor1,predictor2,bias_correction=True, tschuprow=False):
-    predictor1_cat= define_cat(dataset,predictor1)
-    predictor2_cat= define_cat(dataset,predictor2)
+
+def get_correlation(
+    dataset, predictor1, predictor2, bias_correction=False, tschuprow=True
+):
+    predictor1_cat = define_cat(dataset, predictor1)
+    predictor2_cat = define_cat(dataset, predictor2)
     if predictor1_cat & predictor2_cat:
         corr_coeff = np.nan
         try:
@@ -237,7 +243,9 @@ def get_correlation(dataset,predictor1,predictor2,bias_correction=True, tschupro
             # r and c are number of categories of x and y
             r, c = crosstab_matrix.shape
             if bias_correction:
-                phi2_corrected = max(0, phi2 - ((r - 1) * (c - 1)) / (n_observations - 1))
+                phi2_corrected = max(
+                    0, phi2 - ((r - 1) * (c - 1)) / (n_observations - 1)
+                )
                 r_corrected = r - ((r - 1) ** 2) / (n_observations - 1)
                 c_corrected = c - ((c - 1) ** 2) / (n_observations - 1)
                 if tschuprow:
@@ -261,24 +269,29 @@ def get_correlation(dataset,predictor1,predictor2,bias_correction=True, tschupro
             else:
                 warnings.warn("Error calculating Cramer's V", RuntimeWarning)
             return corr_coeff
-    elif (predictor1 & predictor2 == False) |  (predictor2 & predictor1 == False):
-        categorical_dataset = dataset[categorical_columns]
-        dataset_encoded = categorical_dataset.apply(lambda x: pd.factorize(x)[0])
-        numeric_dataset = dataset[numeric_columns]
-        combined_dataset = pd.concat(
-            [numeric_dataset.reset_index(drop=True), dataset_encoded], axis=1
-        )
-        corr_mat_numeric_cat = combined_dataset.corr()
+    elif (predictor1_cat & (not predictor2_cat)) | (
+        predictor2_cat & (not predictor1_cat)
+    ):
+        if predictor1_cat:
+            categorical_dataset = dataset[predictor1]
+            numeric_dataset = dataset[predictor2]
+        else:
+            categorical_dataset = dataset[predictor2]
+            numeric_dataset = dataset[predictor1]
 
+    else:
+        corr = np.corrcoef(dataset[predictor1], dataset[predictor2])[0, 1]
+        return corr
 
 
 def correlation_matrix(dataset, numeric_columns, categorical_columns):
     # Calculate correlation metrics between numeric - numeric predictors
     corr_mat_numeric = dataset[numeric_columns].corr()
     corr_mat_numeric = corr_mat_numeric.rename_axis(None).rename_axis(None, axis=1)
-    corr_mat_numeric.columns = ['variable1', 'variable2', 'correlation']
+    corr_mat_numeric.columns = ["variable1", "variable2", "correlation"]
     corr_mat_numeric1 = corr_mat_numeric.stack().reset_index()
-    return corr_mat_numeric1
+    fig = px.imshow(corr_mat_numeric)
+    fig.show()
     # Calculate correlation metrics between categorical - categorical predictors
     cat_var1 = categorical_columns
     cat_var2 = categorical_columns
@@ -299,7 +312,9 @@ def correlation_matrix(dataset, numeric_columns, categorical_columns):
                 )
             )
     chi_test_output = pd.DataFrame(result, columns=["var1", "var2", "coeff"])
-    #print(chi_test_output.pivot(index="var1", columns="var2", values="coeff"))
+    fig = px.imshow(chi_test_output.pivot(index="var1", columns="var2", values="coeff"))
+    fig.show()
+
     # Calculate correlation metrics between continuous - categorical predictors
     categorical_dataset = dataset[categorical_columns]
     dataset_encoded = categorical_dataset.apply(lambda x: pd.factorize(x)[0])
@@ -308,12 +323,13 @@ def correlation_matrix(dataset, numeric_columns, categorical_columns):
         [numeric_dataset.reset_index(drop=True), dataset_encoded], axis=1
     )
     corr_mat_numeric_cat = combined_dataset.corr()
-    #print(corr_mat_numeric_cat)
+    fig = px.imshow(corr_mat_numeric_cat)
+    fig.show()
 
 
 def main():
     # Dataset loading
-    dataset = pd.read_csv("/home/mahmedi/Downloads/archive(1)/titanic_data.csv")
+    dataset = pd.read_csv("/Users/maryam/Downloads/Titanic-Dataset.csv")
     dataset = dataset.dropna()
     del dataset["Cabin"]
     del dataset["Name"]

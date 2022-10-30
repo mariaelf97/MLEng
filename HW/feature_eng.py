@@ -1,5 +1,4 @@
 import math
-import os
 import sys
 import warnings
 from itertools import product
@@ -33,7 +32,7 @@ def change_yes_no_to_binary(dataset, col):
     return dataset[col]
 
 
-def save_html(file, var1, var2, mean_res=True):
+def save_html(file, var1, var2, mean_res=False):
     html = file.to_html(render_links=True, escape=False)
     if mean_res:
         fig_file = open(var1 + "-" + var2 + "_mean_response_heatmap.html", "w")
@@ -41,6 +40,10 @@ def save_html(file, var1, var2, mean_res=True):
         fig_file = open(var1 + "-" + var2 + ".html", "w")
     fig_file.write(html)
     fig_file.close()
+
+
+def make_clickable(val):
+    return '<a target="blank" href="{}">{}</a>'.format(val, val)
 
 
 def predictor_response_plots(dataset, predictor, response):
@@ -57,7 +60,6 @@ def predictor_response_plots(dataset, predictor, response):
                 yaxis_title="Predictor=" + predictor,
             )
             save_html(fig, predictor, response)
-            return os.path.abspath(predictor + "-" + response + ".html")
 
         # res = cat - pred = numeric
         else:
@@ -74,7 +76,6 @@ def predictor_response_plots(dataset, predictor, response):
             )
 
             save_html(fig, predictor, response)
-            return os.path.abspath(predictor + "-" + response + ".html")
 
     # res = numeric - pred = cat
     else:
@@ -96,7 +97,6 @@ def predictor_response_plots(dataset, predictor, response):
             )
 
             save_html(fig, predictor, response)
-            return os.path.abspath(predictor + "-" + response + ".html")
         # res = numeric - pred = numeric
         else:
             fig = px.scatter(x=dataset[predictor], y=dataset[response], trendline="ols")
@@ -107,7 +107,6 @@ def predictor_response_plots(dataset, predictor, response):
             )
 
             save_html(fig, predictor, response)
-            return os.path.abspath(predictor + "-" + response + ".html")
 
 
 def regression_model(dataset, predictor, response):
@@ -163,7 +162,6 @@ def diff_mean_response(
     predictor1_cat = define_cat(predictor1)
     predictor2_cat = define_cat(predictor2)
     if predictor1_cat & predictor2_cat:
-        bin_df = pd.DataFrame()
         bin_df = (
             dataset.groupby([predictor1, predictor2])[response].mean().reset_index()
         )
@@ -185,9 +183,9 @@ def diff_mean_response(
             "population_mean",
             "mean_squared_diff",
         ]
-        mean_squared_diff_unweighted = bin_df_merged["mean_squared_diff"].sum() / len(
-            bin_df_merged.index
-        )
+        # mean_squared_diff_unweighted = bin_df_merged["mean_squared_diff"].sum() / len(
+        #    bin_df_merged.index
+        # )
         # population proportion = bin_count/ N (sample size)
         bin_df_merged["population_proportion"] = (
             bin_df_merged["counts"] / bin_df_merged["counts"].sum()
@@ -199,10 +197,18 @@ def diff_mean_response(
         mean_squared_diff_weighted = bin_df_merged[
             "mean_squared_diff_weighted"
         ].sum() / len(bin_df_merged.index)
-        if weighted:
-            return mean_squared_diff_weighted
+        if figure:
+            df_wide = bin_df_merged.pivot(
+                index="predictor1",
+                columns="predictor2",
+                values="mean_squared_diff_weighted",
+            )
+            fig = px.imshow(df_wide)
+            save_html(fig, predictor1, predictor2, mean_res=True)
+
         else:
-            return mean_squared_diff_unweighted
+            return mean_squared_diff_weighted
+
     elif (not predictor1_cat) & (not predictor2_cat):
         # Optimal number of bins
         n_bin1 = math.ceil(math.sqrt(len(dataset[predictor1])))
@@ -256,22 +262,19 @@ def diff_mean_response(
             2,
         )
         # get mean squared differences unweighted
-        binned_pred_resp_counts[
-            "mean_squared_diff_unweighted"
-        ] = binned_pred_resp_counts["mean_squared_diff"].sum()
+        # mean_squared_diff_unweighted = binned_pred_resp_counts["mean_squared_diff"].sum()
+        # / len(binned_pred_resp_counts.index)
         # population proportion = bin_count/ N (sample size)
         binned_pred_resp_counts["population_proportion"] = (
             binned_pred_resp_counts["bin_count"]
             / binned_pred_resp_counts["bin_count"].sum()
         )
         # weighted mean square difference = mean square difference * population proportion
-        binned_pred_resp_counts["mean_squared_diff_weighted"] = (
+        mean_squared_diff_weighted = (
             binned_pred_resp_counts["mean_squared_diff"]
             * binned_pred_resp_counts["population_proportion"]
         )
-
         if figure:
-
             df_wide = binned_pred_resp_counts.pivot(
                 index="bin_centers1",
                 columns="bin_centers2",
@@ -279,11 +282,67 @@ def diff_mean_response(
             )
             fig = px.imshow(df_wide)
             save_html(fig, predictor1, predictor2, mean_res=True)
-            return os.path.abspath(
-                predictor1 + "-" + predictor2 + "_mean_response_heatmap.html"
-            )
+
         else:
-            return binned_pred_resp_counts["mean_squared_diff_weighted"].sum()
+            return mean_squared_diff_weighted
+
+    else:
+        if predictor1_cat:
+            cat_var = predictor1
+            num_var = predictor2
+        else:
+            cat_var = predictor2
+            num_var = predictor1
+        n_bin = math.ceil(math.sqrt(len(dataset[num_var])))
+        # Get bin start points (lower bound)
+        bins_list = np.linspace(min(dataset[num_var]), max(dataset[num_var]), n_bin)
+        bin_df = pd.DataFrame()
+        bin_df["bins"] = pd.cut(x=dataset[num_var], bins=bins_list)
+        bin_df["predictor2"] = dataset[cat_var]
+        bin_df.columns = ["predictor1", "predictor2"]
+        bin_df_merged = pd.concat([bin_df, dataset[response]], axis=1)
+        bin_df_merged.columns = ["predictor1", "predictor2", "response"]
+
+        binned_pred_resp = (
+            bin_df_merged.groupby(["predictor1", "predictor2"])["response"]
+            .mean()
+            .reset_index()
+        )
+        counts = (
+            bin_df_merged.groupby(["predictor1", "predictor2"]).size().reset_index()
+        )
+        bin_df_merged = pd.merge(
+            binned_pred_resp, counts, on=["predictor1", "predictor2"], how="outer"
+        )
+        bin_df_merged.columns = ["predictor1", "predictor2", "response", "counts"]
+        bin_df_merged["population_mean"] = bin_df_merged["response"].mean()
+        bin_df_merged["mean_squared_diff"] = pow(
+            (bin_df_merged["population_mean"] - bin_df_merged["response"]),
+            2,
+        )
+
+        # population proportion = bin_count/ N (sample size)
+        bin_df_merged["population_proportion"] = (
+            bin_df_merged["counts"] / bin_df_merged["counts"].sum()
+        )
+        # weighted mean square difference = mean square difference * population proportion
+        bin_df_merged["mean_squared_diff_weighted"] = (
+            bin_df_merged["mean_squared_diff"] * bin_df_merged["population_proportion"]
+        )
+        mean_squared_diff_weighted = bin_df_merged[
+            "mean_squared_diff_weighted"
+        ].sum() / len(bin_df_merged.index)
+        if figure:
+            df_wide = bin_df_merged.pivot(
+                index="predictor1",
+                columns="predictor2",
+                values="mean_squared_diff_weighted",
+            )
+            fig = px.imshow(df_wide)
+            save_html(fig, predictor1, predictor2, mean_res=True)
+
+        else:
+            return mean_squared_diff_weighted
 
 
 def random_forest_var_imp(dataset, response):
@@ -399,13 +458,14 @@ def generate_tables(
             bias_correction=False,
             tschuprow=True,
         )
-        plot_link = predictor_response_plots(dataset, var_list[i][0], response_name)
+        predictor_response_plots(dataset, var_list[i][0], response_name)
+        plot_link = var_list[i][0] + "-" + var_list[i][1] + ".html"
         d.append(
             {
                 "predictor1": var1,
                 "predictor2": var2,
                 "correlation": corr,
-                "plot": '<a href="' + plot_link + '">link</a>',
+                "plot": make_clickable(plot_link),
             }
         )
     df = pd.DataFrame(d)
@@ -418,13 +478,6 @@ def generate_cor_mat(long_format_table):
     )
     fig = px.imshow(df_wide)
     plotly.offline.plot(fig)
-
-
-def change_URL(path):
-    # returns the final component of a url
-    f_url = os.path.basename(path)
-    # convert the url into link
-    return '<a href="{}">{}</a>'.format(path, f_url)
 
 
 def generate_brute_force(
@@ -443,15 +496,16 @@ def generate_brute_force(
         brute_force = diff_mean_response(
             dataset, var_list[i][0], var_list[i][1], response_name, figure=False
         )
-        plot_link = diff_mean_response(
+        diff_mean_response(
             dataset, var_list[i][0], var_list[i][1], response_name, figure=True
         )
+        plot_link = var1 + "-" + var2 + "_mean_response_heatmap.html"
         d.append(
             {
                 "predictor1": var1,
                 "predictor2": var2,
                 "weighted_mean_response": brute_force,
-                "plot": change_URL(plot_link),
+                "plot": make_clickable(plot_link),
             }
         )
     df = pd.DataFrame(d)
@@ -520,15 +574,15 @@ def main():
     )
     num_num_brute_force_table.to_html("num_num_brute_force_table.html")
     # Brute force for num-cat
-    cat_num_brute_force_table = generate_brute_force(
-        dataset,
-        categorical_columns,
-        numeric_columns,
-        response_name,
-        cat1=True,
-        cat2=False,
-    )
-    cat_num_brute_force_table.to_html("cat_num_brute_force_table.html")
+    # cat_num_brute_force_table = generate_brute_force(
+    #   dataset,
+    #  categorical_columns,
+    # numeric_columns,
+    # response_name,
+    # cat1=True,
+    # cat2=False,
+    # )
+    # cat_num_brute_force_table.to_html("cat_num_brute_force_table.html")
 
     # specifying the response variable
 

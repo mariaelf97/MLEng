@@ -474,6 +474,8 @@ def generate_tables(
             }
         )
     df = pd.DataFrame(d)
+    df["correlation_absolute_value"] = abs(df["correlation"])
+    df = df.sort_values(by="correlation_absolute_value", ascending=False)
     return df
 
 

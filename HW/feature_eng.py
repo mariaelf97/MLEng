@@ -33,7 +33,7 @@ def change_yes_no_to_binary(dataset, col):
 
 
 def save_html(file, var1, var2, mean_res=False):
-    html = file.to_html(render_links=True, escape=False)
+    html = file.to_html()
     if mean_res:
         fig_file = open(var1 + "-" + var2 + "_mean_response_heatmap.html", "w")
     else:
@@ -159,8 +159,8 @@ def regression_model(dataset, predictor, response):
 def diff_mean_response(
     dataset, predictor1, predictor2, response, figure=True, weighted=True
 ):
-    predictor1_cat = define_cat(predictor1)
-    predictor2_cat = define_cat(predictor2)
+    predictor1_cat = define_cat(dataset, predictor1)
+    predictor2_cat = define_cat(dataset, predictor2)
     if predictor1_cat & predictor2_cat:
         bin_df = (
             dataset.groupby([predictor1, predictor2])[response].mean().reset_index()
@@ -270,7 +270,7 @@ def diff_mean_response(
             / binned_pred_resp_counts["bin_count"].sum()
         )
         # weighted mean square difference = mean square difference * population proportion
-        mean_squared_diff_weighted = (
+        binned_pred_resp_counts["mean_squared_diff_weighted"] = (
             binned_pred_resp_counts["mean_squared_diff"]
             * binned_pred_resp_counts["population_proportion"]
         )
@@ -284,7 +284,9 @@ def diff_mean_response(
             save_html(fig, predictor1, predictor2, mean_res=True)
 
         else:
-            return mean_squared_diff_weighted
+            return binned_pred_resp_counts["mean_squared_diff_weighted"].sum() / len(
+                binned_pred_resp_counts.index
+            )
 
     else:
         if predictor1_cat:
@@ -298,23 +300,24 @@ def diff_mean_response(
         bins_list = np.linspace(min(dataset[num_var]), max(dataset[num_var]), n_bin)
         bin_df = pd.DataFrame()
         bin_df["bins"] = pd.cut(x=dataset[num_var], bins=bins_list)
+        bin_df["bin_centers"] = bin_df.bins.apply(lambda x: x.mid)
         bin_df["predictor2"] = dataset[cat_var]
-        bin_df.columns = ["predictor1", "predictor2"]
+        bin_df.columns = ["predictor1", "bin_centers", "predictor2"]
         bin_df_merged = pd.concat([bin_df, dataset[response]], axis=1)
-        bin_df_merged.columns = ["predictor1", "predictor2", "response"]
+        bin_df_merged.columns = ["predictor1", "bin_centers", "predictor2", "response"]
 
         binned_pred_resp = (
-            bin_df_merged.groupby(["predictor1", "predictor2"])["response"]
+            bin_df_merged.groupby(["bin_centers", "predictor2"])["response"]
             .mean()
             .reset_index()
         )
         counts = (
-            bin_df_merged.groupby(["predictor1", "predictor2"]).size().reset_index()
+            bin_df_merged.groupby(["bin_centers", "predictor2"]).size().reset_index()
         )
         bin_df_merged = pd.merge(
-            binned_pred_resp, counts, on=["predictor1", "predictor2"], how="outer"
+            binned_pred_resp, counts, on=["bin_centers", "predictor2"], how="outer"
         )
-        bin_df_merged.columns = ["predictor1", "predictor2", "response", "counts"]
+        bin_df_merged.columns = ["bin_centers", "predictor2", "response", "counts"]
         bin_df_merged["population_mean"] = bin_df_merged["response"].mean()
         bin_df_merged["mean_squared_diff"] = pow(
             (bin_df_merged["population_mean"] - bin_df_merged["response"]),
@@ -329,12 +332,12 @@ def diff_mean_response(
         bin_df_merged["mean_squared_diff_weighted"] = (
             bin_df_merged["mean_squared_diff"] * bin_df_merged["population_proportion"]
         )
-        mean_squared_diff_weighted = bin_df_merged[
+        bin_df_merged["mean_squared_diff_weighted"] = bin_df_merged[
             "mean_squared_diff_weighted"
         ].sum() / len(bin_df_merged.index)
         if figure:
             df_wide = bin_df_merged.pivot(
-                index="predictor1",
+                index="bin_centers",
                 columns="predictor2",
                 values="mean_squared_diff_weighted",
             )
@@ -342,7 +345,9 @@ def diff_mean_response(
             save_html(fig, predictor1, predictor2, mean_res=True)
 
         else:
-            return mean_squared_diff_weighted
+            return bin_df_merged["mean_squared_diff_weighted"].sum() / len(
+                bin_df_merged.index
+            )
 
 
 def random_forest_var_imp(dataset, response):

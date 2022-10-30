@@ -11,7 +11,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import scipy.stats as ss
 import statsmodels.api as sm
-from plotly.io import to_html
 from sklearn.ensemble import RandomForestClassifier
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -34,8 +33,8 @@ def change_yes_no_to_binary(dataset, col):
     return dataset[col]
 
 
-def save_html(fig, var1, var2, mean_res=True):
-    html = fig.to_html()
+def save_html(file, var1, var2, mean_res=True):
+    html = file.to_html(render_links=True, escape=False)
     if mean_res:
         fig_file = open(var1 + "-" + var2 + "_mean_response_heatmap.html", "w")
     else:
@@ -51,7 +50,6 @@ def predictor_response_plots(dataset, predictor, response):
     if response_cat:
         if predictor_cat:
             cat_freq = pd.crosstab(index=dataset[predictor], columns=dataset[response])
-            # conf_matrix = confusion_matrix(dataset[response], dataset[predictor])
             fig = go.Figure(data=go.Heatmap(z=cat_freq, zauto=True))
             fig.update_layout(
                 title="Categorical Predictor by Categorical Response",
@@ -159,83 +157,133 @@ def regression_model(dataset, predictor, response):
             # p_value = "{:.6e}".format(linear_regression_model_fitted.pvalues[1])
 
 
-def diff_mean_response(dataset, predictor1, predictor2, response, figure=True):
-    # Optimal number of bins
-    n_bin1 = math.ceil(math.sqrt(len(dataset[predictor1])))
-    n_bin2 = math.ceil(math.sqrt(len(dataset[predictor2])))
-    # Get bin start points (lower bound)
-    bins_list1 = np.linspace(min(dataset[predictor1]), max(dataset[predictor1]), n_bin1)
-    bins_list2 = np.linspace(min(dataset[predictor2]), max(dataset[predictor2]), n_bin2)
-    # create a new df to store values
-    bin_df = pd.DataFrame()
-    # calculate bins (lower and upper bound)
-    bin_df["bins1"] = pd.cut(x=dataset[predictor1], bins=bins_list1)
-    bin_df["bins2"] = pd.cut(x=dataset[predictor2], bins=bins_list2)
-    binned_pred_resp = pd.concat(
-        [bin_df.reset_index(drop=True), dataset[response]], axis=1
-    )
-    # count number of data points in each bin
-    counts = binned_pred_resp.groupby(["bins1", "bins2"]).count()
-    # get the mean value of response in each bin
-    mean_response = binned_pred_resp.groupby(["bins1", "bins2"]).mean().fillna(0)
-    # merge two dataframes (mean of response and counts per bin)
-    binned_pred_resp_counts = pd.concat([counts, mean_response], axis=1)
-    binned_pred_resp_counts.reset_index(inplace=True)
-    # re-name the columns in the dataframe
-    binned_pred_resp_counts.columns = [
-        "bins_interval1",
-        "bins_interval2",
-        "bin_count",
-        "bin_means",
-    ]
-    # get bin center
-    binned_pred_resp_counts[
-        "bin_centers1"
-    ] = binned_pred_resp_counts.bins_interval1.apply(lambda x: x.mid)
-    binned_pred_resp_counts[
-        "bin_centers2"
-    ] = binned_pred_resp_counts.bins_interval2.apply(lambda x: x.mid)
-    # get population mean
-    binned_pred_resp_counts["population_mean"] = binned_pred_resp_counts[
-        "bin_means"
-    ].mean()
-    # get mean squared difference
-    binned_pred_resp_counts["mean_squared_diff"] = pow(
-        (
-            binned_pred_resp_counts["population_mean"]
-            - binned_pred_resp_counts["bin_means"]
-        ),
-        2,
-    )
-    # get mean squared differences unweighted
-    binned_pred_resp_counts["mean_squared_diff_unweighted"] = binned_pred_resp_counts[
-        "mean_squared_diff"
-    ].sum()
-    # population proportion = bin_count/ N (sample size)
-    binned_pred_resp_counts["population_proportion"] = (
-        binned_pred_resp_counts["bin_count"]
-        / binned_pred_resp_counts["bin_count"].sum()
-    )
-    # weighted mean square difference = mean square difference * population proportion
-    binned_pred_resp_counts["mean_squared_diff_weighted"] = (
-        binned_pred_resp_counts["mean_squared_diff"]
-        * binned_pred_resp_counts["population_proportion"]
-    )
-
-    if figure:
-
-        df_wide = binned_pred_resp_counts.pivot(
-            index="bin_centers1",
-            columns="bin_centers2",
-            values="mean_squared_diff_weighted",
+def diff_mean_response(
+    dataset, predictor1, predictor2, response, figure=True, weighted=True
+):
+    predictor1_cat = define_cat(predictor1)
+    predictor2_cat = define_cat(predictor2)
+    if predictor1_cat & predictor2_cat:
+        bin_df = pd.DataFrame()
+        bin_df = (
+            dataset.groupby([predictor1, predictor2])[response].mean().reset_index()
         )
-        fig = px.imshow(df_wide)
-        save_html(fig, predictor1, predictor2, mean_res=True)
-        return os.path.abspath(
-            predictor1 + "-" + predictor2 + "_mean_response_heatmap.html"
+        counts = dataset.groupby([predictor1, predictor2]).size().reset_index()
+        bin_df_merged = pd.merge(
+            bin_df, counts, on=[predictor1, predictor2], how="outer"
         )
-    else:
-        return binned_pred_resp_counts["mean_squared_diff_weighted"].sum()
+        bin_df_merged["population_mean"] = bin_df_merged[response].mean()
+        bin_df_merged["mean_squared_diff"] = pow(
+            (bin_df_merged["population_mean"] - bin_df_merged[response]),
+            2,
+        )
+        # rename columns
+        bin_df_merged.columns = [
+            "predictor1",
+            "predictor2",
+            "response",
+            "counts",
+            "population_mean",
+            "mean_squared_diff",
+        ]
+        mean_squared_diff_unweighted = bin_df_merged["mean_squared_diff"].sum() / len(
+            bin_df_merged.index
+        )
+        # population proportion = bin_count/ N (sample size)
+        bin_df_merged["population_proportion"] = (
+            bin_df_merged["counts"] / bin_df_merged["counts"].sum()
+        )
+        # weighted mean square difference = mean square difference * population proportion
+        bin_df_merged["mean_squared_diff_weighted"] = (
+            bin_df_merged["mean_squared_diff"] * bin_df_merged["population_proportion"]
+        )
+        mean_squared_diff_weighted = bin_df_merged[
+            "mean_squared_diff_weighted"
+        ].sum() / len(bin_df_merged.index)
+        if weighted:
+            return mean_squared_diff_weighted
+        else:
+            return mean_squared_diff_unweighted
+    elif (not predictor1_cat) & (not predictor2_cat):
+        # Optimal number of bins
+        n_bin1 = math.ceil(math.sqrt(len(dataset[predictor1])))
+        n_bin2 = math.ceil(math.sqrt(len(dataset[predictor2])))
+        # Get bin start points (lower bound)
+        bins_list1 = np.linspace(
+            min(dataset[predictor1]), max(dataset[predictor1]), n_bin1
+        )
+        bins_list2 = np.linspace(
+            min(dataset[predictor2]), max(dataset[predictor2]), n_bin2
+        )
+        # create a new df to store values
+        bin_df = pd.DataFrame()
+        # calculate bins (lower and upper bound)
+        bin_df["bins1"] = pd.cut(x=dataset[predictor1], bins=bins_list1)
+        bin_df["bins2"] = pd.cut(x=dataset[predictor2], bins=bins_list2)
+        binned_pred_resp = pd.concat(
+            [bin_df.reset_index(drop=True), dataset[response]], axis=1
+        )
+        # count number of data points in each bin
+        counts = binned_pred_resp.groupby(["bins1", "bins2"]).count()
+        # get the mean value of response in each bin
+        mean_response = binned_pred_resp.groupby(["bins1", "bins2"]).mean().fillna(0)
+        # merge two dataframes (mean of response and counts per bin)
+        binned_pred_resp_counts = pd.concat([counts, mean_response], axis=1)
+        binned_pred_resp_counts.reset_index(inplace=True)
+        # re-name the columns in the dataframe
+        binned_pred_resp_counts.columns = [
+            "bins_interval1",
+            "bins_interval2",
+            "bin_count",
+            "bin_means",
+        ]
+        # get bin center
+        binned_pred_resp_counts[
+            "bin_centers1"
+        ] = binned_pred_resp_counts.bins_interval1.apply(lambda x: x.mid)
+        binned_pred_resp_counts[
+            "bin_centers2"
+        ] = binned_pred_resp_counts.bins_interval2.apply(lambda x: x.mid)
+        # get population mean
+        binned_pred_resp_counts["population_mean"] = binned_pred_resp_counts[
+            "bin_means"
+        ].mean()
+        # get mean squared difference
+        binned_pred_resp_counts["mean_squared_diff"] = pow(
+            (
+                binned_pred_resp_counts["population_mean"]
+                - binned_pred_resp_counts["bin_means"]
+            ),
+            2,
+        )
+        # get mean squared differences unweighted
+        binned_pred_resp_counts[
+            "mean_squared_diff_unweighted"
+        ] = binned_pred_resp_counts["mean_squared_diff"].sum()
+        # population proportion = bin_count/ N (sample size)
+        binned_pred_resp_counts["population_proportion"] = (
+            binned_pred_resp_counts["bin_count"]
+            / binned_pred_resp_counts["bin_count"].sum()
+        )
+        # weighted mean square difference = mean square difference * population proportion
+        binned_pred_resp_counts["mean_squared_diff_weighted"] = (
+            binned_pred_resp_counts["mean_squared_diff"]
+            * binned_pred_resp_counts["population_proportion"]
+        )
+
+        if figure:
+
+            df_wide = binned_pred_resp_counts.pivot(
+                index="bin_centers1",
+                columns="bin_centers2",
+                values="mean_squared_diff_weighted",
+            )
+            fig = px.imshow(df_wide)
+            save_html(fig, predictor1, predictor2, mean_res=True)
+            return os.path.abspath(
+                predictor1 + "-" + predictor2 + "_mean_response_heatmap.html"
+            )
+        else:
+            return binned_pred_resp_counts["mean_squared_diff_weighted"].sum()
 
 
 def random_forest_var_imp(dataset, response):

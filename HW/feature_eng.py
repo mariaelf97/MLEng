@@ -1,4 +1,5 @@
 import math
+import os
 import sys
 import warnings
 from itertools import product
@@ -10,6 +11,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import scipy.stats as ss
 import statsmodels.api as sm
+from plotly.io import to_html
 from sklearn.ensemble import RandomForestClassifier
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -32,6 +34,16 @@ def change_yes_no_to_binary(dataset, col):
     return dataset[col]
 
 
+def save_html(fig, var1, var2, mean_res=True):
+    html = fig.to_html()
+    if mean_res:
+        fig_file = open(var1 + "-" + var2 + "_mean_response_heatmap.html", "w")
+    else:
+        fig_file = open(var1 + "-" + var2 + ".html", "w")
+    fig_file.write(html)
+    fig_file.close()
+
+
 def predictor_response_plots(dataset, predictor, response):
     predictor_cat = define_cat(dataset, predictor)
     response_cat = define_cat(dataset, response)
@@ -46,7 +58,9 @@ def predictor_response_plots(dataset, predictor, response):
                 xaxis_title="Response=" + response,
                 yaxis_title="Predictor=" + predictor,
             )
-            plotly.offline.plot(fig)
+            save_html(fig, predictor, response)
+            return os.path.abspath(predictor + "-" + response + ".html")
+
         # res = cat - pred = numeric
         else:
             fig = px.histogram(
@@ -60,7 +74,9 @@ def predictor_response_plots(dataset, predictor, response):
                 xaxis_title="Response=" + response,
                 yaxis_title="Predictor=" + predictor,
             )
-            plotly.offline.plot(fig)
+
+            save_html(fig, predictor, response)
+            return os.path.abspath(predictor + "-" + response + ".html")
 
     # res = numeric - pred = cat
     else:
@@ -81,7 +97,8 @@ def predictor_response_plots(dataset, predictor, response):
                 yaxis_title="Predictor=" + predictor,
             )
 
-            plotly.offline.plot(fig)
+            save_html(fig, predictor, response)
+            return os.path.abspath(predictor + "-" + response + ".html")
         # res = numeric - pred = numeric
         else:
             fig = px.scatter(x=dataset[predictor], y=dataset[response], trendline="ols")
@@ -90,7 +107,9 @@ def predictor_response_plots(dataset, predictor, response):
                 xaxis_title="Response=" + response,
                 yaxis_title="Predictor=" + predictor,
             )
-            plotly.offline.plot(fig)
+
+            save_html(fig, predictor, response)
+            return os.path.abspath(predictor + "-" + response + ".html")
 
 
 def regression_model(dataset, predictor, response):
@@ -140,31 +159,42 @@ def regression_model(dataset, predictor, response):
             # p_value = "{:.6e}".format(linear_regression_model_fitted.pvalues[1])
 
 
-def diff_mean_response(dataset, predictor, response, figure=True):
+def diff_mean_response(dataset, predictor1, predictor2, response, figure=True):
     # Optimal number of bins
-    n_bin = math.ceil(math.sqrt(len(dataset[predictor])))
+    n_bin1 = math.ceil(math.sqrt(len(dataset[predictor1])))
+    n_bin2 = math.ceil(math.sqrt(len(dataset[predictor2])))
     # Get bin start points (lower bound)
-    bins_list = np.linspace(min(dataset[predictor]), max(dataset[predictor]), n_bin)
+    bins_list1 = np.linspace(min(dataset[predictor1]), max(dataset[predictor1]), n_bin1)
+    bins_list2 = np.linspace(min(dataset[predictor2]), max(dataset[predictor2]), n_bin2)
     # create a new df to store values
     bin_df = pd.DataFrame()
     # calculate bins (lower and upper bound)
-    bin_df["bins"] = pd.cut(x=dataset[predictor], bins=bins_list)
+    bin_df["bins1"] = pd.cut(x=dataset[predictor1], bins=bins_list1)
+    bin_df["bins2"] = pd.cut(x=dataset[predictor2], bins=bins_list2)
     binned_pred_resp = pd.concat(
         [bin_df.reset_index(drop=True), dataset[response]], axis=1
     )
     # count number of data points in each bin
-    counts = binned_pred_resp.groupby(["bins"]).count()
+    counts = binned_pred_resp.groupby(["bins1", "bins2"]).count()
     # get the mean value of response in each bin
-    mean_response = binned_pred_resp.groupby(["bins"]).mean().fillna(0)
+    mean_response = binned_pred_resp.groupby(["bins1", "bins2"]).mean().fillna(0)
     # merge two dataframes (mean of response and counts per bin)
     binned_pred_resp_counts = pd.concat([counts, mean_response], axis=1)
     binned_pred_resp_counts.reset_index(inplace=True)
     # re-name the columns in the dataframe
-    binned_pred_resp_counts.columns = ["bin_interval", "bin_count", "bin_means"]
+    binned_pred_resp_counts.columns = [
+        "bins_interval1",
+        "bins_interval2",
+        "bin_count",
+        "bin_means",
+    ]
     # get bin center
-    binned_pred_resp_counts["bin_centers"] = binned_pred_resp_counts.bin_interval.apply(
-        lambda x: x.mid
-    )
+    binned_pred_resp_counts[
+        "bin_centers1"
+    ] = binned_pred_resp_counts.bins_interval1.apply(lambda x: x.mid)
+    binned_pred_resp_counts[
+        "bin_centers2"
+    ] = binned_pred_resp_counts.bins_interval2.apply(lambda x: x.mid)
     # get population mean
     binned_pred_resp_counts["population_mean"] = binned_pred_resp_counts[
         "bin_means"
@@ -191,20 +221,21 @@ def diff_mean_response(dataset, predictor, response, figure=True):
         binned_pred_resp_counts["mean_squared_diff"]
         * binned_pred_resp_counts["population_proportion"]
     )
-    fig = px.bar(binned_pred_resp_counts, x="bin_centers", y="bin_count")
-    fig.add_hline(y=binned_pred_resp_counts["response_mean"].mean())
-    fig.update_layout(
-        title="Difference in mean of response",
-        xaxis_title="Predictor=" + predictor,
-        yaxis_title="response=" + response,
-    )
+
     if figure:
-        fig.show()
+
+        df_wide = binned_pred_resp_counts.pivot(
+            index="bin_centers1",
+            columns="bin_centers2",
+            values="mean_squared_diff_weighted",
+        )
+        fig = px.imshow(df_wide)
+        save_html(fig, predictor1, predictor2, mean_res=True)
+        return os.path.abspath(
+            predictor1 + "-" + predictor2 + "_mean_response_heatmap.html"
+        )
     else:
-        html = binned_pred_resp_counts.to_html()
-        text_file = open("mean_of_response.html", "w")
-        text_file.write(html)
-        text_file.close()
+        return binned_pred_resp_counts["mean_squared_diff_weighted"].sum()
 
 
 def random_forest_var_imp(dataset, response):
@@ -285,7 +316,9 @@ def get_correlation(
             n_array[i] = len(cat_measures)
             y_avg_array[i] = np.average(cat_measures)
         y_total_avg = np.sum(np.multiply(y_avg_array, n_array)) / np.sum(n_array)
-        numerator = np.sum(np.multiply(n_array, np.power(np.subtract(y_avg_array, y_total_avg), 2)))
+        numerator = np.sum(
+            np.multiply(n_array, np.power(np.subtract(y_avg_array, y_total_avg), 2))
+        )
         denominator = np.sum(np.power(np.subtract(measurements, y_total_avg), 2))
         if numerator == 0:
             eta = 0.0
@@ -297,70 +330,169 @@ def get_correlation(
         corr = np.corrcoef(dataset[predictor1], dataset[predictor2])[0, 1]
         return corr
 
-def correlation_matrix(dataset, numeric_columns, categorical_columns):
-    # Calculate correlation metrics between numeric - numeric predictors
-    corr_mat_numeric = dataset[numeric_columns].corr()
-    corr_mat_numeric = corr_mat_numeric.rename_axis(None).rename_axis(None, axis=1)
-    fig = px.imshow(corr_mat_numeric)
-    plotly.offline.plot(fig)
-    # Calculate correlation metrics between categorical - categorical predictors
-    cat_var1 = categorical_columns
-    cat_var2 = categorical_columns
-    cat_var_prod = list(product(cat_var1, cat_var2))
-    df_cat_v1 = dataset[categorical_columns].dropna()
-    result = []
-    for i in cat_var_prod:
-        if i[0] != i[1]:
-            result.append(
-                (
-                    i[0],
-                    i[1],
-                    list(
-                        ss.chi2_contingency(
-                            pd.crosstab(df_cat_v1[i[0]], df_cat_v1[i[1]])
-                        )
-                    )[1],
-                )
-            )
-    chi_test_output = pd.DataFrame(result, columns=["var1", "var2", "coeff"])
-    fig = px.imshow(chi_test_output.pivot(index="var1", columns="var2", values="coeff"))
+
+def generate_tables(
+    dataset, categorical_columns, numeric_columns, response_name, cat1=True, cat2=True
+):
+    if cat1 & cat2:
+        var_list = list(product(categorical_columns, categorical_columns))
+    elif (not cat1) & (not cat2):
+        var_list = list(product(numeric_columns, numeric_columns))
+    else:
+        var_list = list(product(numeric_columns, categorical_columns))
+    d = []
+    for i in range(0, len(var_list)):
+        var1 = var_list[i][0]
+        var2 = var_list[i][1]
+        corr = get_correlation(
+            dataset,
+            var_list[i][0],
+            var_list[i][1],
+            bias_correction=False,
+            tschuprow=True,
+        )
+        plot_link = predictor_response_plots(dataset, var_list[i][0], response_name)
+        d.append(
+            {
+                "predictor1": var1,
+                "predictor2": var2,
+                "correlation": corr,
+                "plot": '<a href="' + plot_link + '">link</a>',
+            }
+        )
+    df = pd.DataFrame(d)
+    return df
+
+
+def generate_cor_mat(long_format_table):
+    df_wide = long_format_table.pivot(
+        index="predictor1", columns="predictor2", values="correlation"
+    )
+    fig = px.imshow(df_wide)
     plotly.offline.plot(fig)
 
-    # Calculate correlation metrics between continuous - categorical predictors
-    categorical_dataset = dataset[categorical_columns]
-    dataset_encoded = categorical_dataset.apply(lambda x: pd.factorize(x)[0])
-    numeric_dataset = dataset[numeric_columns]
-    combined_dataset = pd.concat(
-        [numeric_dataset.reset_index(drop=True), dataset_encoded], axis=1
-    )
-    corr_mat_numeric_cat = combined_dataset.corr()
-    fig = px.imshow(corr_mat_numeric_cat)
-    plotly.offline.plot(fig)
+
+def change_URL(path):
+    # returns the final component of a url
+    f_url = os.path.basename(path)
+    # convert the url into link
+    return '<a href="{}">{}</a>'.format(path, f_url)
+
+
+def generate_brute_force(
+    dataset, categorical_columns, numeric_columns, response_name, cat1=True, cat2=True
+):
+    if cat1 & cat2:
+        var_list = list(product(categorical_columns, categorical_columns))
+    elif (not cat1) & (not cat2):
+        var_list = list(product(numeric_columns, numeric_columns))
+    else:
+        var_list = list(product(numeric_columns, categorical_columns))
+    d = []
+    for i in range(0, len(numeric_columns)):
+        var1 = var_list[i][0]
+        var2 = var_list[i][1]
+        brute_force = diff_mean_response(
+            dataset, var_list[i][0], var_list[i][1], response_name, figure=False
+        )
+        plot_link = diff_mean_response(
+            dataset, var_list[i][0], var_list[i][1], response_name, figure=True
+        )
+        d.append(
+            {
+                "predictor1": var1,
+                "predictor2": var2,
+                "weighted_mean_response": brute_force,
+                "plot": change_URL(plot_link),
+            }
+        )
+    df = pd.DataFrame(d)
+    return df
 
 
 def main():
     # Dataset loading
-    dataset = pd.read_csv("/home/mahmedi/Downloads/archive(1)/titanic_data.csv")
+    dataset = pd.read_csv("/Users/maryam/Downloads/Titanic-Dataset.csv")
     dataset = dataset.dropna()
     del dataset["Cabin"]
     del dataset["Name"]
-    dataset["binary"] = dataset["Survived"].map({1: "yes", 0: "no"})
-    get_correlation(dataset, "Sex", "Age", bias_correction=False, tschuprow=True)
-    # specifying the response variable
     response_name = "Survived"
-    # Don't include response in other variables, we don't want to plot response vs response.
+    # dataset["binary"] = dataset["Survived"].map({1: "yes", 0: "no"})
     # col_name = [col for col in dataset.columns if col != response_name]
     # predictor_dataset = dataset[col_name]
     # Split dataset on predictors in list between categoricals and continuous
-    # numeric_columns = predictor_dataset.select_dtypes("number").columns
-    # categorical_columns = predictor_dataset.select_dtypes("object").columns
+    numeric_columns = dataset.select_dtypes("number").columns
+    categorical_columns = dataset.select_dtypes("object").columns
+    # generate cat-cat correlation tables
+    cat_cat_cor_table = generate_tables(
+        dataset,
+        categorical_columns,
+        numeric_columns,
+        response_name,
+        cat1=True,
+        cat2=True,
+    )
+    cat_cat_cor_table.to_html("cat_cat_correlation_table.html")
+    # generate cat-cat correlation matrix
+    generate_cor_mat(cat_cat_cor_table)
+
+    # generate num_num correlation tables
+    num_num_cor_table = generate_tables(
+        dataset,
+        categorical_columns,
+        numeric_columns,
+        response_name,
+        cat1=False,
+        cat2=False,
+    )
+    num_num_cor_table.to_html("num_num_correlation_table.html")
+    # generate num-num correlation matrix
+    generate_cor_mat(num_num_cor_table)
+    # generate cat_num correlation tables
+    cat_num_cor_table = generate_tables(
+        dataset,
+        categorical_columns,
+        numeric_columns,
+        response_name,
+        cat1=True,
+        cat2=False,
+    )
+    cat_num_cor_table.to_html("cat_num_correlation_table.html")
+    # generate num-num correlation matrix
+    generate_cor_mat(cat_num_cor_table)
+
+    # Brute force for num-num
+    num_num_brute_force_table = generate_brute_force(
+        dataset,
+        categorical_columns,
+        numeric_columns,
+        response_name,
+        cat1=False,
+        cat2=False,
+    )
+    num_num_brute_force_table.to_html("num_num_brute_force_table.html")
+    # Brute force for num-cat
+    cat_num_brute_force_table = generate_brute_force(
+        dataset,
+        categorical_columns,
+        numeric_columns,
+        response_name,
+        cat1=True,
+        cat2=False,
+    )
+    cat_num_brute_force_table.to_html("cat_num_brute_force_table.html")
+
+    # specifying the response variable
+
+    # Don't include response in other variables, we don't want to plot response vs response.
+
     # create plots
     # for col in col_name:
     #    predictor_response_plots(dataset, col, response_name)
     # create regression models
     # for col in col_name:
     #    regression_model(dataset, col, response_name)
-    #diff_mean_response(dataset, "Age", response_name)
+    # diff_mean_response(dataset, "Age", response_name)
     # variable importance
     # please use if response is binary (0,1)
     # random_forest_var_imp(dataset,reponse_name)

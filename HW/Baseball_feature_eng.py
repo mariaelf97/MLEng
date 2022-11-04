@@ -17,7 +17,7 @@ def main():
     sql_engine = sqlalchemy.create_engine(connect_string)
 
     query = """
-        SELECT * from game;
+        SELECT * from game limit 1,10;
     """
     df = pandas.read_sql_query(query, sql_engine)
     print(df.head())

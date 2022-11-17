@@ -33,7 +33,7 @@ def change_yes_no_to_binary(dataset, col):
 
 
 def save_html(file, var1, var2, mean_res=False):
-    html = file.to_html()
+    html = file.to_html(escape=True)
     if mean_res:
         fig_file = open(var1 + "-" + var2 + "_mean_response_heatmap.html", "w")
     else:
@@ -156,9 +156,7 @@ def regression_model(dataset, predictor, response):
             # p_value = "{:.6e}".format(linear_regression_model_fitted.pvalues[1])
 
 
-def diff_mean_response(
-    dataset, predictor1, predictor2, response, figure=True, weighted=True
-):
+def diff_mean_response(dataset, predictor1, predictor2, response, figure=True):
     predictor1_cat = define_cat(dataset, predictor1)
     predictor2_cat = define_cat(dataset, predictor2)
     if predictor1_cat & predictor2_cat:
@@ -497,7 +495,7 @@ def generate_brute_force(
     else:
         var_list = list(product(numeric_columns, categorical_columns))
     d = []
-    for i in range(0, len(numeric_columns)):
+    for i in range(0, len(var_list)):
         var1 = var_list[i][0]
         var2 = var_list[i][1]
         brute_force = diff_mean_response(
@@ -526,12 +524,11 @@ def main():
     del dataset["Cabin"]
     del dataset["Name"]
     response_name = "Survived"
-    # dataset["binary"] = dataset["Survived"].map({1: "yes", 0: "no"})
-    # col_name = [col for col in dataset.columns if col != response_name]
-    # predictor_dataset = dataset[col_name]
+    predictors_list = [col for col in dataset.columns if col != response_name]
+    predictor_dataset = dataset[predictors_list]
     # Split dataset on predictors in list between categoricals and continuous
-    numeric_columns = dataset.select_dtypes("number").columns
-    categorical_columns = dataset.select_dtypes("object").columns
+    numeric_columns = predictor_dataset.select_dtypes("number").columns
+    categorical_columns = predictor_dataset.select_dtypes("object").columns
     # generate cat-cat correlation tables
     cat_cat_cor_table = generate_tables(
         dataset,
@@ -580,32 +577,6 @@ def main():
         cat2=False,
     )
     num_num_brute_force_table.to_html("num_num_brute_force_table.html")
-    # Brute force for num-cat
-    # cat_num_brute_force_table = generate_brute_force(
-    #   dataset,
-    #  categorical_columns,
-    # numeric_columns,
-    # response_name,
-    # cat1=True,
-    # cat2=False,
-    # )
-    # cat_num_brute_force_table.to_html("cat_num_brute_force_table.html")
-
-    # specifying the response variable
-
-    # Don't include response in other variables, we don't want to plot response vs response.
-
-    # create plots
-    # for col in col_name:
-    #    predictor_response_plots(dataset, col, response_name)
-    # create regression models
-    # for col in col_name:
-    #    regression_model(dataset, col, response_name)
-    # diff_mean_response(dataset, "Age", response_name)
-    # variable importance
-    # please use if response is binary (0,1)
-    # random_forest_var_imp(dataset,reponse_name)
-    # correlation_matrix(dataset, numeric_columns, categorical_columns)
 
 
 if __name__ == "__main__":

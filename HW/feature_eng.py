@@ -373,9 +373,9 @@ def mean_of_response(dataset, predictor, response, figure=False):
         [bin_df.reset_index(drop=True), dataset[response]], axis=1
     )
     # count number of data points in each bin
-    counts = binned_pred_resp.groupby(["bins1"]).count()
+    counts = binned_pred_resp.groupby(["bins"]).count()
     # get the mean value of response in each bin
-    mean_response = binned_pred_resp.groupby(["bins1"]).mean().fillna(0)
+    mean_response = binned_pred_resp.groupby(["bins"]).mean().fillna(0)
     # merge two dataframes (mean of response and counts per bin)
     binned_pred_resp_counts = pd.concat([counts, mean_response], axis=1)
     binned_pred_resp_counts.reset_index(inplace=True)

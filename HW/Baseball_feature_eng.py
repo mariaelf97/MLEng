@@ -182,8 +182,9 @@ def main():
     d = []
     for i in range(0, len(predictors_list)):
         mean_resp = mean_of_response(
-            dataset, predictors_list, response_name, figure=False
+            dataset, predictors_list[i], response_name, figure=False
         )
+        mean_of_response(dataset, predictors_list[i], response_name, figure=True)
         plot_link = predictors_list[i] + "_mean_response_plot.html"
         d.append(
             {

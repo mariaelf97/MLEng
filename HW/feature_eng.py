@@ -1,4 +1,4 @@
-import math
+import os
 import sys
 import warnings
 from itertools import product
@@ -21,8 +21,8 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 def define_cat(dataset, col):
     if dataset[col].dtype == "O":
         return True
-    elif dataset[col].fillna(0).unique().sum() == 1:
-        return True
+    # elif dataset[col].fillna(0).unique().sum() == 1:
+    #   return True
     else:
         return False
 
@@ -32,18 +32,23 @@ def change_yes_no_to_binary(dataset, col):
     return dataset[col]
 
 
-def save_html(file, var1, var2, mean_res=False):
-    html = file.to_html(escape=True)
-    if mean_res:
-        fig_file = open(var1 + "-" + var2 + "_mean_response_heatmap.html", "w")
+def save_html(file, var1, var2, mean_res=False, two_predictors=False):
+    html = file.to_html()
+    if two_predictors:
+        if mean_res:
+            fig_file = open(var1 + "-" + var2 + "_mean_response_heatmap.html", "w")
+        else:
+            fig_file = open(var1 + "-" + var2 + ".html", "w")
     else:
-        fig_file = open(var1 + "-" + var2 + ".html", "w")
+        fig_file = open(var1 + "_mean_response_heatmap.html", "w")
+
     fig_file.write(html)
     fig_file.close()
 
 
-def make_clickable(val):
-    return '<a target="blank" href="{}">{}</a>'.format(val, val)
+def make_clickable(url):
+    name = os.path.basename(url)
+    return '<a href="./HW/{}">{}</a>'.format(url, name)
 
 
 def predictor_response_plots(dataset, predictor, response):
@@ -124,19 +129,24 @@ def regression_model(dataset, predictor, response):
             cons = sm.add_constant(x)
             logistic_regression_model = sm.Logit(y, cons)
             logistic_regression_model_fitted = logistic_regression_model.fit()
-            print(print(f"Logistic regression for: {response} "))
-            print(logistic_regression_model_fitted.summary())
+            t_value = round(logistic_regression_model_fitted.tvalues[1], 6)
+            p_value = "{:.6e}".format(logistic_regression_model_fitted.pvalues[1])
+            # print(print(f"Logistic regression for: {response} "))
+            # print(logistic_regression_model_fitted.summary())
+            return "t_value is :" + t_value + "p_value is:" + p_value
+
         else:
             y = dataset[response]
             x = dataset[predictor]
             cons = sm.add_constant(x)
             logistic_regression_model = sm.Logit(y, cons)
             logistic_regression_model_fitted = logistic_regression_model.fit()
-            print(print(f"Logistic regression for: {response} "))
-            print(logistic_regression_model_fitted.summary())
+            # print(print(f"Logistic regression for: {response} "))
+            # print(logistic_regression_model_fitted.summary())
             # Get the stats
-            # t_value = round(logistic_regression_model_fitted.tvalues[1], 6)
-            # p_value = "{:.6e}".format(logistic_regression_model_fitted.pvalues[1])
+            t_value = round(logistic_regression_model_fitted.tvalues[1], 6)
+            p_value = "{:.6e}".format(logistic_regression_model_fitted.pvalues[1])
+            return "t_value is :" + t_value + "p_value is:" + p_value
 
     else:
         # note : This only works for int binary response, it only takes int 0,1 as response.
@@ -149,21 +159,24 @@ def regression_model(dataset, predictor, response):
             cons = sm.add_constant(x)
             linear_regression_model = sm.OLS(y, cons)
             linear_regression_model_fitted = linear_regression_model.fit()
-            print(print(f"linear regression : {response} "))
-            print(linear_regression_model_fitted.summary())
+            # print(print(f"linear regression : {response} "))
+            # print(linear_regression_model_fitted.summary())
             # Get the stats
-            # t_value = round(linear_regression_model_fitted.tvalues[1], 6)
-            # p_value = "{:.6e}".format(linear_regression_model_fitted.pvalues[1])
+            t_value = round(linear_regression_model_fitted.tvalues[1], 6)
+            p_value = "{:.6e}".format(linear_regression_model_fitted.pvalues[1])
+            return "t_value is :" + t_value + "p_value is:" + p_value
 
 
-def diff_mean_response(dataset, predictor1, predictor2, response, figure=True):
+def brute_force(dataset, predictor1, predictor2, response, figure=True):
     predictor1_cat = define_cat(dataset, predictor1)
     predictor2_cat = define_cat(dataset, predictor2)
     if predictor1_cat & predictor2_cat:
         bin_df = (
-            dataset.groupby([predictor1, predictor2])[response].mean().reset_index()
+            dataset.groupby([predictor1, predictor2])[response]
+            .mean()
+            .reset_index(drop=True)
         )
-        counts = dataset.groupby([predictor1, predictor2]).size().reset_index()
+        counts = dataset.groupby([predictor1, predictor2]).size().reset_index(drop=True)
         bin_df_merged = pd.merge(
             bin_df, counts, on=[predictor1, predictor2], how="outer"
         )
@@ -209,8 +222,8 @@ def diff_mean_response(dataset, predictor1, predictor2, response, figure=True):
 
     elif (not predictor1_cat) & (not predictor2_cat):
         # Optimal number of bins
-        n_bin1 = math.ceil(math.sqrt(len(dataset[predictor1])))
-        n_bin2 = math.ceil(math.sqrt(len(dataset[predictor2])))
+        n_bin1 = 10
+        n_bin2 = 10
         # Get bin start points (lower bound)
         bins_list1 = np.linspace(
             min(dataset[predictor1]), max(dataset[predictor1]), n_bin1
@@ -293,7 +306,7 @@ def diff_mean_response(dataset, predictor1, predictor2, response, figure=True):
         else:
             cat_var = predictor2
             num_var = predictor1
-        n_bin = math.ceil(math.sqrt(len(dataset[num_var])))
+        n_bin = 10
         # Get bin start points (lower bound)
         bins_list = np.linspace(min(dataset[num_var]), max(dataset[num_var]), n_bin)
         bin_df = pd.DataFrame()
@@ -348,8 +361,69 @@ def diff_mean_response(dataset, predictor1, predictor2, response, figure=True):
             )
 
 
-def random_forest_var_imp(dataset, response):
-    feature_names = dataset.select_dtypes("number").columns
+def mean_of_response(dataset, predictor, response, figure=False):
+    n_bin1 = 10
+    # Get bin start points (lower bound)
+    bins_list1 = np.linspace(min(dataset[predictor]), max(dataset[predictor]), n_bin1)
+    # create a new df to store values
+    bin_df = pd.DataFrame()
+    # calculate bins (lower and upper bound)
+    bin_df["bins"] = pd.cut(x=dataset[predictor], bins=bins_list1)
+    binned_pred_resp = pd.concat(
+        [bin_df.reset_index(drop=True), dataset[response]], axis=1
+    )
+    # count number of data points in each bin
+    counts = binned_pred_resp.groupby(["bins1"]).count()
+    # get the mean value of response in each bin
+    mean_response = binned_pred_resp.groupby(["bins1"]).mean().fillna(0)
+    # merge two dataframes (mean of response and counts per bin)
+    binned_pred_resp_counts = pd.concat([counts, mean_response], axis=1)
+    binned_pred_resp_counts.reset_index(inplace=True)
+    # re-name the columns in the dataframe
+    binned_pred_resp_counts.columns = [
+        "bins_interval1",
+        "bin_count",
+        "bin_means",
+    ]
+    # get bin center
+    binned_pred_resp_counts[
+        "bin_centers"
+    ] = binned_pred_resp_counts.bins_interval1.apply(lambda x: x.mid)
+
+    # get population mean
+    binned_pred_resp_counts["population_mean"] = binned_pred_resp_counts[
+        "bin_means"
+    ].mean()
+    # get mean squared difference
+    binned_pred_resp_counts["mean_squared_diff"] = pow(
+        (
+            binned_pred_resp_counts["population_mean"]
+            - binned_pred_resp_counts["bin_means"]
+        ),
+        2,
+    )
+    # population proportion = bin_count/ N (sample size)
+    binned_pred_resp_counts["population_proportion"] = (
+        binned_pred_resp_counts["bin_count"]
+        / binned_pred_resp_counts["bin_count"].sum()
+    )
+    # weighted mean square difference = mean square difference * population proportion
+    binned_pred_resp_counts["mean_squared_diff_weighted"] = (
+        binned_pred_resp_counts["mean_squared_diff"]
+        * binned_pred_resp_counts["population_proportion"]
+    )
+    if figure:
+        fig = px.bar(binned_pred_resp_counts, x="bin_centers", y="bin_count")
+        save_html(fig, predictor, "none", mean_res=False)
+
+    else:
+        return binned_pred_resp_counts["mean_squared_diff_weighted"].sum() / len(
+            binned_pred_resp_counts.index
+        )
+
+
+def random_forest_var_imp(dataset, predictor_list, response):
+    feature_names = dataset[predictor_list].select_dtypes("number").columns
     forest = RandomForestClassifier(random_state=0)
     forest.fit(dataset[feature_names], dataset[response])
     importances = forest.feature_importances_
@@ -468,10 +542,11 @@ def generate_tables(
                 "predictor1": var1,
                 "predictor2": var2,
                 "correlation": corr,
-                "plot": make_clickable(plot_link),
+                "plot": plot_link,
             }
         )
     df = pd.DataFrame(d)
+    df.style.format({"plot": make_clickable})
     df["correlation_absolute_value"] = abs(df["correlation"])
     df = df.sort_values(by="correlation_absolute_value", ascending=False)
     return df
@@ -498,32 +573,32 @@ def generate_brute_force(
     for i in range(0, len(var_list)):
         var1 = var_list[i][0]
         var2 = var_list[i][1]
-        brute_force = diff_mean_response(
+        brute_force_value = brute_force(
             dataset, var_list[i][0], var_list[i][1], response_name, figure=False
         )
-        diff_mean_response(
-            dataset, var_list[i][0], var_list[i][1], response_name, figure=True
-        )
+        brute_force(dataset, var_list[i][0], var_list[i][1], response_name, figure=True)
         plot_link = var1 + "-" + var2 + "_mean_response_heatmap.html"
         d.append(
             {
                 "predictor1": var1,
                 "predictor2": var2,
-                "weighted_mean_response": brute_force,
-                "plot": make_clickable(plot_link),
+                "weighted_mean_response": brute_force_value,
+                "plot": plot_link,
             }
         )
     df = pd.DataFrame(d)
+    df.style.format({"plot": make_clickable})
     return df
 
 
 def main():
     # Dataset loading
-    dataset = pd.read_csv("/Users/maryam/Downloads/Titanic-Dataset.csv")
+    from dataset_loader import TestDatasets
+
+    t = TestDatasets()
+    dataset = t.get_test_data_set(data_set_name="titanic")[0]
     dataset = dataset.dropna()
-    del dataset["Cabin"]
-    del dataset["Name"]
-    response_name = "Survived"
+    response_name = t.get_test_data_set(data_set_name="titanic")[2]
     predictors_list = [col for col in dataset.columns if col != response_name]
     predictor_dataset = dataset[predictors_list]
     # Split dataset on predictors in list between categoricals and continuous
@@ -538,7 +613,7 @@ def main():
         cat1=True,
         cat2=True,
     )
-    cat_cat_cor_table.to_html("cat_cat_correlation_table.html")
+    cat_cat_cor_table.to_html("cat_cat_correlation_table.html", escape=False)
     # generate cat-cat correlation matrix
     generate_cor_mat(cat_cat_cor_table)
 
@@ -551,7 +626,7 @@ def main():
         cat1=False,
         cat2=False,
     )
-    num_num_cor_table.to_html("num_num_correlation_table.html")
+    num_num_cor_table.to_html("num_num_correlation_table.html", escape=False)
     # generate num-num correlation matrix
     generate_cor_mat(num_num_cor_table)
     # generate cat_num correlation tables
@@ -563,7 +638,7 @@ def main():
         cat1=True,
         cat2=False,
     )
-    cat_num_cor_table.to_html("cat_num_correlation_table.html")
+    cat_num_cor_table.to_html("cat_num_correlation_table.html", escape=False)
     # generate num-num correlation matrix
     generate_cor_mat(cat_num_cor_table)
 
@@ -576,7 +651,27 @@ def main():
         cat1=False,
         cat2=False,
     )
-    num_num_brute_force_table.to_html("num_num_brute_force_table.html")
+    num_num_brute_force_table.to_html("num_num_brute_force_table.html", escape=False)
+    # Brute force for cat_num
+    cat_num_brute_force_table = generate_brute_force(
+        dataset,
+        categorical_columns,
+        numeric_columns,
+        response_name,
+        cat1=True,
+        cat2=False,
+    )
+    cat_num_brute_force_table.to_html("cat_num_brute_force_table.html", escape=False)
+    # Brute force for cat_cat
+    cat_cat_brute_force_table = generate_brute_force(
+        dataset,
+        categorical_columns,
+        numeric_columns,
+        response_name,
+        cat1=True,
+        cat2=True,
+    )
+    cat_cat_brute_force_table.to_html("cat_cat_brute_force_table.html", escape=False)
 
 
 if __name__ == "__main__":

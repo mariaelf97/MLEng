@@ -40,7 +40,7 @@ def save_html(file, var1, var2, mean_res=False, two_predictors=False):
         else:
             fig_file = open(var1 + "-" + var2 + ".html", "w")
     else:
-        fig_file = open(var1 + "_mean_response_heatmap.html", "w")
+        fig_file = open(var1 + "_mean_response_bargraph.html", "w")
 
     fig_file.write(html)
     fig_file.close()
@@ -414,7 +414,7 @@ def mean_of_response(dataset, predictor, response, figure=False):
     )
     if figure:
         fig = px.bar(binned_pred_resp_counts, x="bin_centers", y="bin_count")
-        save_html(fig, predictor, "none", mean_res=False)
+        save_html(fig, predictor, "none", two_predictors=False, mean_res=False)
 
     else:
         return binned_pred_resp_counts["mean_squared_diff_weighted"].sum() / len(

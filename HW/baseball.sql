@@ -39,12 +39,6 @@ create or replace temporary table historic_at_bat_per_player
 
 -- calculate last 100 days batting average --
 -- first we create a table with the 99 recent entries for each player --
-create or replace temporary table last_100_days_per_player
-    select *
-    from joined_batter_game jbg
-    partition by batter
-;
-
 
 alter table joined_batter_game add index batter_indx (batter,local_date)
 ;

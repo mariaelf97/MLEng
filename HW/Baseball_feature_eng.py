@@ -3,6 +3,12 @@ import sys
 import pandas as pd
 import sqlalchemy
 import statsmodels.api as sm
+from feature_eng import (
+    generate_tables,
+    make_clickable,
+    mean_of_response,
+    random_forest_var_imp,
+)
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
@@ -134,8 +140,6 @@ def main():
     numeric_columns = predictor_dataset.select_dtypes("number").columns
     categorical_columns = predictor_dataset.select_dtypes("object").columns
 
-    from feature_eng import generate_tables
-
     # individual plots with correlation table
     num_num_cor_table = generate_tables(
         dataset,
@@ -161,8 +165,6 @@ def main():
     regression_table.to_html("regression_table.html", escape=False)
 
     # RF variable importance
-    from feature_eng import random_forest_var_imp
-
     print(random_forest_var_imp(dataset, predictors_list, response_name))
     # brute force
     from feature_eng import generate_brute_force
@@ -177,7 +179,6 @@ def main():
     )
     num_num_brute_force_table.to_html("num_num_brute_force_table.html", escape=False)
     # diff in mean of response
-    from feature_eng import make_clickable, mean_of_response
 
     d = []
     for i in range(0, len(predictors_list)):

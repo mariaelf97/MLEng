@@ -17,7 +17,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 
-def logistic_reg(dataset, predictor, response, pvalue=True):
+def logistic_reg(dataset, predictor, response):
     y = dataset[response]
     x = dataset[predictor]
     cons = sm.add_constant(x)
@@ -26,10 +26,7 @@ def logistic_reg(dataset, predictor, response, pvalue=True):
     # Get the stats
     t_value = round(logistic_regression_model_fitted.tvalues[1], 6)
     p_value = "{:.6e}".format(logistic_regression_model_fitted.pvalues[1])
-    if pvalue:
-        return p_value
-    else:
-        return t_value
+    return p_value, t_value
 
 
 def train_test_split_func(dataset, predictor_list, response_name):
@@ -154,8 +151,7 @@ def main():
     # regression table
     d = []
     for i in range(0, len(predictors_list)):
-        pvalue = logistic_reg(dataset, predictors_list[i], response_name, pvalue=True)
-        tvalue = logistic_reg(dataset, predictors_list[i], response_name, pvalue=False)
+        pvalue, tvalue = logistic_reg(dataset, predictors_list[i], response_name)
 
         d.append(
             {"predictor1": predictors_list[i], "p-value": pvalue, "tvalue": tvalue}

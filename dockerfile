@@ -16,10 +16,9 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Get necessary python libraries
-COPY requirements.txt .
-#COPY yoursql file
+COPY HW/mybaseball.sql .
 #COPY your bash script
-RUN pip3 install --compile --no-cache-dir -r requirements.txt
+
 
 
 # Run app

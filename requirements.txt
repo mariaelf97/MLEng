@@ -6,7 +6,7 @@
 #
 black==22.10.0
     # via -r requirements.in
-build==0.8.0
+build==0.9.0
     # via pip-tools
 cfgv==3.3.1
     # via pre-commit
@@ -14,39 +14,33 @@ click==8.1.3
     # via
     #   black
     #   pip-tools
-contourpy==1.0.5
+contourpy==1.0.6
     # via matplotlib
 cycler==0.11.0
     # via matplotlib
 distlib==0.3.6
     # via virtualenv
-dython==0.7.2
-    # via -r requirements.in
 filelock==3.8.0
     # via virtualenv
 flake8==5.0.4
     # via -r requirements.in
 fonttools==4.38.0
     # via matplotlib
-greenlet==1.1.3.post0
+greenlet==2.0.1
     # via sqlalchemy
-identify==2.5.7
+identify==2.5.9
     # via pre-commit
 isort[requirements]==5.10.1
     # via -r requirements.in
 joblib==1.2.0
-    # via
-    #   scikit-learn
-    #   scikit-plot
+    # via scikit-learn
 kiwisolver==1.4.4
     # via matplotlib
-mariadb==1.1.4
+mariadb==1.1.5.post3
     # via -r requirements.in
-matplotlib==3.6.0
+matplotlib==3.6.2
     # via
     #   -r requirements.in
-    #   dython
-    #   scikit-plot
     #   seaborn
 mccabe==0.7.0
     # via flake8
@@ -56,11 +50,10 @@ nodeenv==1.7.0
     # via pre-commit
 nose==1.3.7
     # via -r requirements.in
-numpy==1.23.4
+numpy==1.23.5
     # via
     #   -r requirements.in
     #   contourpy
-    #   dython
     #   matplotlib
     #   pandas
     #   patsy
@@ -71,35 +64,33 @@ numpy==1.23.4
 packaging==21.3
     # via
     #   build
+    #   mariadb
     #   matplotlib
     #   statsmodels
-pandas==1.5.1
+pandas==1.5.2
     # via
     #   -r requirements.in
-    #   dython
     #   seaborn
     #   statsmodels
-pathspec==0.10.1
+pathspec==0.10.2
     # via black
 patsy==0.5.3
     # via statsmodels
 pep517==0.13.0
     # via build
-pillow==9.2.0
+pillow==9.3.0
     # via matplotlib
-pip-tools==6.9.0
+pip-tools==6.11.0
     # via -r requirements.in
-platformdirs==2.5.2
+platformdirs==2.5.4
     # via
     #   black
     #   virtualenv
-plotly==5.10.0
+plotly==5.11.0
     # via -r requirements.in
 pre-commit==2.20.0
     # via -r requirements.in
-psutil==5.9.3
-    # via dython
-py4j==0.10.9
+py4j==0.10.9.5
     # via pyspark
 pycodestyle==2.9.1
     # via flake8
@@ -109,44 +100,33 @@ pyparsing==3.0.9
     # via
     #   matplotlib
     #   packaging
-pyspark==3.0.3
-    # via
-    #   -r requirements.in
-    #   pyspark-stubs
-pyspark-stubs==3.0.0.post3
+pyspark==3.3.1
     # via -r requirements.in
 python-dateutil==2.8.2
     # via
     #   matplotlib
     #   pandas
-pytz==2022.5
+pytz==2022.6
     # via pandas
 pyyaml==6.0
     # via pre-commit
-scikit-learn==1.1.2
-    # via
-    #   -r requirements.in
-    #   dython
-    #   scikit-plot
-scikit-plot==0.3.7
-    # via dython
+scikit-learn==1.1.3
+    # via -r requirements.in
 scipy==1.9.3
     # via
-    #   dython
     #   scikit-learn
-    #   scikit-plot
     #   statsmodels
 seaborn==0.12.1
-    # via
-    #   -r requirements.in
-    #   dython
+    # via -r requirements.in
 six==1.16.0
     # via
     #   patsy
     #   python-dateutil
-sqlalchemy==1.4.42
+sklearn==0.0.post1
     # via -r requirements.in
-statsmodels==0.13.2
+sqlalchemy==1.4.44
+    # via -r requirements.in
+statsmodels==0.13.5
     # via -r requirements.in
 tenacity==8.1.0
     # via plotly
@@ -158,9 +138,9 @@ tomli==2.0.1
     # via
     #   black
     #   build
-virtualenv==20.16.5
+virtualenv==20.17.0
     # via pre-commit
-wheel==0.37.1
+wheel==0.38.4
     # via pip-tools
 
 # The following packages are considered to be unsafe in a requirements file:

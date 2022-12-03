@@ -37,7 +37,7 @@ create or replace temporary table historic_at_bat_per_player
 alter table joined_batter_game add index batter_indx (batter,local_date)
 ;
 
-create INDEX batter_indx
+create or replace INDEX batter_indx
 ON joined_batter_game (batter,local_date)
 ;
 
@@ -61,3 +61,4 @@ create or replace table last_100_days_rol_avg_per_player
     from last_100_days_per_player last_100
     group by last_100.batter
 ;
+select * from last_100_days_rol_avg_per_player limit 1,10;

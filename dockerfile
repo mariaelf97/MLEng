@@ -16,7 +16,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Get necessary python libraries
-COPY HW/test.sql .
+COPY HW/mybaseball.sql .
 COPY HW/mybashscript.sh .
 
 # Run app

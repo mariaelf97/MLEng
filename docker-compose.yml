@@ -12,7 +12,7 @@ services:
     volumes:
       - ./database:/config
     ports:
-      - 4306:3306
+      - 5306:3306
     restart: unless-stopped
 
   baseball:
@@ -22,5 +22,5 @@ services:
     image: baseball
     volumes:
       - ./baseball.sql:/App/baseball.sql
-    command: sleep 9999999
+    #command: sleep 9999999
     restart: unless-stopped

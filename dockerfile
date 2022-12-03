@@ -16,11 +16,11 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Get necessary python libraries
-COPY HW/mybaseball.sql .
-#COPY your bash script
-
-
+COPY HW/test.sql .
+COPY HW/mybashscript.sh .
 
 # Run app
-CMD sleep 999999
-#bash script here
+#RUN chmod +x HW/mybashscript.sh
+CMD ./mybashscript.sh
+
+#docker system prune -a --volumes to clean cache

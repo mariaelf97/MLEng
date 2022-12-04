@@ -280,6 +280,7 @@ def brute_force(dataset, predictor1, predictor2, response, figure=True):
             binned_pred_resp_counts["bin_count"]
             / binned_pred_resp_counts["bin_count"].sum()
         )
+
         # weighted mean square difference = mean square difference * population proportion
         binned_pred_resp_counts["mean_squared_diff_weighted"] = (
             binned_pred_resp_counts["mean_squared_diff"]

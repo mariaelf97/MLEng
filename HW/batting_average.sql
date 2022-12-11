@@ -156,15 +156,73 @@ ON joined_team_batting_pitching (game_id)
 create or replace INDEX boxscore_game_index
 ON boxscore (game_id)
 ;
+SELECT * from joined_team_batting_pitching limit 1,10;
+
+-- merge two tables
 
 CREATE or REPLACE TABLE joined_team_batting_pitching_boxscore
-select bs.winner_home_or_away
- 		,jtbp.*
+select 	jtbp_home.game_id as game_id
+		,jtbp_home.team_id as team_id
+		,jtbp_home.batting_single as batting_single_home
+ 		,jtbp_home.batting_double as batting_double_home
+ 		,jtbp_home.batting_triple as batting_triple_home
+ 		,jtbp_home.batting_atbat as batting_atbat_home
+ 		,jtbp_home.batting_homerun as batting_homerun_home
+ 		,jtbp_home.batting_hit as batting_hit_home
+ 		,jtbp_home.batting_hit_by_pitch as batting_hit_by_pitch_home
+ 		,jtbp_home.batting_baseonball_or_walk as batting_baseonball_or_walk_home
+ 		,jtbp_home.batting_ab_to_hr as batting_ab_to_hr_home
+ 		,jtbp_home.batting_groundout as batting_groundout_home
+ 		,jtbp_home.batting_flyout_or_airout as batting_flyout_or_airout_home
+ 		,jtbp_home.batting_w_to_sr as batting_w_to_sr_home
+ 		,jtbp_home.batting_go_to_fo_or_ao as batting_go_to_fo_or_ao_home
+ 		,jtbp_home.batting_average_batting as batting_average_batting_home
+ 		,jtbp_home.batting_hr_to_hit as batting_hr_to_hit_home
+ 		,jtbp_home.times_on_base_or_tob as batting_tob_home
+ 		,jtbp_home.extra_base_hits_or_ebh as extra_base_hits_or_ebh_home
+ 		,jtbp_away.batting_single as batting_single_away
+ 		,jtbp_away.batting_double as batting_double_away
+ 		,jtbp_away.batting_triple as batting_triple_away
+ 		,jtbp_away.batting_atbat as batting_atbat_away
+ 		,jtbp_away.batting_homerun as batting_homerun_away
+ 		,jtbp_away.batting_hit as batting_hit_away
+ 		,jtbp_away.batting_hit_by_pitch as batting_hit_by_pitch_away
+ 		,jtbp_away.batting_baseonball_or_walk as batting_baseonball_or_walk_away
+ 		,jtbp_away.batting_ab_to_hr as batting_ab_to_hr_away
+ 		,jtbp_away.batting_groundout as batting_groundout_away
+ 		,jtbp_away.batting_flyout_or_airout as batting_flyout_or_airout_away
+ 		,jtbp_away.batting_w_to_sr as batting_w_to_sr_away
+ 		,jtbp_away.batting_go_to_fo_or_ao as batting_go_to_fo_or_ao_away
+ 		,jtbp_away.batting_average_batting as batting_average_batting_away
+ 		,jtbp_away.batting_hr_to_hit as batting_hr_to_hit_away
+ 		,jtbp_away.times_on_base_or_tob as batting_tob_away
+ 		,jtbp_away.extra_base_hits_or_ebh as extra_base_hits_or_ebh_away
+		,jtbp_home.pitching_single as pitching_single_home
+		,jtbp_home.pitching_double as pitching_double_home
+		,jtbp_home.pitching_triple as pitching_triple_home
+		,jtbp_home.pitching_atbat as pitching_atbat_home
+		,jtbp_home.pitching_homerun as pitching_homerun_home
+		,jtbp_home.pitching_hit as pitching_hit_home
+		,jtbp_home.pitching_baseonball_or_walk as pitching_baseonball_or_walk_home
+		,jtbp_home.pitching_go_to_ao as pitching_go_to_ao_home
+		,jtbp_home.pitching_groundout as pitching_groundout_home
+		,jtbp_home.pitching_flyout_or_airout as pitching_flyout_or_airout_home
+		,jtbp_home.pitching_so_to_hr as pitching_so_to_hr_home
+		,jtbp_home.pitching_ab_to_hr as pitching_ab_to_hr_home
+		,jtbp_away.pitching_single as pitching_single_away
+		,jtbp_away.pitching_double as pitching_double_away
+		,jtbp_away.pitching_triple as pitching_triple_away
+		,jtbp_away.pitching_atbat as pitching_atbat_away
+		,jtbp_away.pitching_homerun as pitching_homerun_away
+		,jtbp_away.pitching_hit as pitching_hit_away
+		,jtbp_away.pitching_baseonball_or_walk as pitching_baseonball_or_walk_away
+		,jtbp_away.pitching_go_to_ao as pitching_go_to_ao_away
+		,jtbp_away.pitching_groundout as pitching_groundout_away
+		,jtbp_away.pitching_flyout_or_airout as pitching_flyout_or_airout_away
+		,jtbp_away.pitching_so_to_hr as pitching_so_to_hr_away
+		,jtbp_away.pitching_ab_to_hr as pitching_ab_to_hr_away
 from boxscore bs
 join joined_team_batting_pitching jtbp_home
- on bs.game_id=jtbp_home.game_id AND jtbp_home.home_or_away='H';
+ on bs.game_id=jtbp_home.game_id AND jtbp_home.home_or_away='H'
 join joined_team_batting_pitching jtbp_away
 on bs.game_id=jtbp_away.game_id AND jtbp_away.home_or_away='A';
-
-SELECT * FROM joined_team_batting_pitching_boxscore limit 1,100;
-

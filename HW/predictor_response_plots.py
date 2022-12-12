@@ -17,11 +17,7 @@ def predictor_response_plots(dataset, predictor, response):
                 xaxis_title="Response=" + response,
                 yaxis_title="Predictor=" + predictor,
             )
-            with open(
-                predictor + "-" + response + "_predictor_response_plot.html", "w"
-            ) as output_file:
-                output_file.write(fig)
-
+            fig.write_html(predictor + "-" + response + "_predictor_response_plot.html")
         # res = cat - pred = numeric
         else:
             fig = px.histogram(
@@ -35,10 +31,7 @@ def predictor_response_plots(dataset, predictor, response):
                 xaxis_title="Response=" + response,
                 yaxis_title="Predictor=" + predictor,
             )
-            with open(
-                predictor + "-" + response + "_predictor_response_plot.html", "w"
-            ) as output_file:
-                output_file.write(fig)
+            fig.write_html(predictor + "-" + response + "_predictor_response_plot.html")
 
     # res = numeric - pred = cat
     else:
@@ -58,10 +51,7 @@ def predictor_response_plots(dataset, predictor, response):
                 xaxis_title="Response=" + response,
                 yaxis_title="Predictor=" + predictor,
             )
-            with open(
-                predictor + "-" + response + "_predictor_response_plot.html", "w"
-            ) as output_file:
-                output_file.write(fig)
+            fig.write_html(predictor + "-" + response + "_predictor_response_plot.html")
         # res = numeric - pred = numeric
         else:
             fig = px.scatter(x=dataset[predictor], y=dataset[response], trendline="ols")
@@ -70,7 +60,4 @@ def predictor_response_plots(dataset, predictor, response):
                 xaxis_title="Response=" + response,
                 yaxis_title="Predictor=" + predictor,
             )
-            with open(
-                predictor + "-" + response + "_predictor_response_plot.html", "w"
-            ) as output_file:
-                output_file.write(fig)
+            fig.write_html(predictor + "-" + response + "_predictor_response_plot.html")

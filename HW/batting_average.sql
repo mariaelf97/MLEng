@@ -159,9 +159,9 @@ ON boxscore (game_id)
 SELECT * from joined_team_batting_pitching limit 1,10;
 
 -- merge two tables
-
 CREATE or REPLACE TABLE joined_team_batting_pitching_boxscore
 select 	jtbp_home.game_id as game_id
+		,bs.winner_home_or_away as winner_home_or_away
 		,jtbp_home.team_id as team_id
 		,jtbp_home.batting_single as batting_single_home
  		,jtbp_home.batting_double as batting_double_home

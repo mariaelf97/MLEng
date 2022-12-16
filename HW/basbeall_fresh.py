@@ -1,4 +1,3 @@
-
 import sys
 from itertools import product
 
@@ -46,8 +45,8 @@ def main():
         mean_resp_unweighted = mean_of_response(
             df, predictors_list[i], response_name, figure=False
         )[1]
-        # predictor_response_plots(df,predictors_list[i],response_name)
-        # mean_of_response(df, predictors_list[i], response_name, figure=True)
+        predictor_response_plots(df, predictors_list[i], response_name)
+        mean_of_response(df, predictors_list[i], response_name, figure=True)
         p_value = logistic_reg(df, predictors_list[i], response_name)[0]
         t_value = logistic_reg(df, predictors_list[i], response_name)[1]
         plot_link_mean_of_response = (

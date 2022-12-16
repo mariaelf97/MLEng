@@ -1,9 +1,9 @@
--- first join the game and batter counts table and save the results as a temporary table
-create or replace temporary table joined_batter_game_bs as
-    select
-             g.local_date
-            ,bc.batter
-            ,bc.game_id
+create or replace table joined_batter_counts
+ select  g.local_date
+                , g.away_team_id
+                , g.home_team_id
+                ,bc.batter
+                ,bc.game_id
                 ,bc.Hit
                 ,bc.atBat
                 ,bc.team_id
@@ -16,48 +16,92 @@ create or replace temporary table joined_batter_game_bs as
                 ,bc.Double
                 ,bc.Triple
                 ,bc.Sac_Fly
-            ,bs.winner_home_or_away
-    from batter_counts bc
-    join game g on bc.game_id=g.game_id
-    join boxscore bs on g.game_id = bs.game_id
-;
+        from batter_counts bc
+    join game g on bc.game_id=g.game_id;
 
-create or replace INDEX batter_indx
-ON joined_batter_game_bs (batter,local_date)
-;
 
-create or replace temporary table last_100_days_per_player
-    select    abg1.batter
-            , abg1.local_date
-            , abg1.Hit+sum(coalesce(abg2.Hit,0)) total_Hit
-            , abg1.atBat+sum(coalesce(abg2.atBat,0)) total_atBat
-            , abg1.Hit_By_Pitch+sum(coalesce(abg2.Hit_By_Pitch,0)) total_Hit_By_Pitch
-            , abg1.Home_run+sum(coalesce(abg2.Home_run,0)) total_Home_run
-            , abg1.Strikeout+sum(coalesce(abg2.Strikeout,0)) total_Strikeout
-            , abg1.Single+sum(coalesce(abg2.Single,0)) total_Single
-            , abg1.Double+sum(coalesce(abg2.Double,0)) total_Double
-            , abg1.Triple+sum(coalesce(abg2.Triple,0)) total_Triple
-            , abg1.Sac_Fly+sum(coalesce(abg2.Sac_Fly,0)) total_Sac_Fly
-    from joined_batter_game_bs abg1 force index (batter_indx)
-    left join joined_batter_game_bs abg2 on abg1.batter=abg2.batter
-    and timestampdiff(day,abg1.local_date,abg2.local_date)<=99 and timestampdiff(day,abg1.local_date,abg2.local_date)>0
-    group by abg1.batter,abg1.local_date,abg1.Hit, abg1.atBat, abg1.Hit_By_Pitch, abg1.Home_run, abg1.Strikeout,
-    abg1.Single,abg1.Double, abg1.Triple, abg1.Sac_Fly
-    order by 1,2
+create or replace table historic_data
+    select  jbg.batter
+                ,jbg.team_id
+
+            ,sum(jbg.Hit)/sum(nullif(jbg.atBat,0)) as Average_at_bat
+            ,sum(jbg.Hit_By_Pitch) as sum_hit_by_pitch
+            ,sum(jbg.Home_run) as sum_Home_run
+            ,sum(jbg.Strikeout) as sum_Strikeout
+            ,sum(jbg.Single) as sum_Single
+            ,sum(jbg.Double) as sum_Double
+            ,sum(jbg.Triple) as sum_Triple
+            ,sum(jbg.Sac_Fly) as sum_Sac_Fly
+
+    from joined_batter_counts_bs jbg
+    group by jbg.batter
+    order by jbg.batter ;
+
+alter table historic_data add index team_indx (team_id)
 ;
-create or replace table last_100_days_rol_avg_per_player
+create or replace table joined_historic_data_game
+ select  bc.team_id,
+        bc.game_id,
+        hd.batter,
+        hd.Average_at_bat
+        ,hd.sum_hit_by_pitch
+        ,hd.sum_Home_run
+        ,hd.sum_Strikeout
+        ,hd.sum_Single
+        ,hd.sum_Double
+        ,hd.sum_Triple
+        ,hd.sum_Sac_Fly
+        from historic_data hd
+    join batter_counts bc on hd.team_id=bc.team_id;
+
+create or replace table joined_historic_data_game_boxscore
+     select
+        hd.game_id
+        ,hd.batter
+        ,hd.Average_at_bat
+        ,hd.sum_hit_by_pitch
+        ,hd.sum_Home_run
+        ,hd.sum_Strikeout
+        ,hd.sum_Single
+        ,hd.sum_Double
+        ,hd.sum_Triple
+        ,hd.sum_Sac_Fly
+        ,bs.winner_home_or_away
+        from joined_historic_data_game hd
+    join boxscore bs on hd.game_id=bs.game_id;
+
+create or replace table joined_historic_data_game_boxscore_added
+     select
+        hd.game_id
+        , g.away_team_id
+        , g.home_team_id
+        ,hd.batter
+        ,hd.Average_at_bat
+        ,hd.sum_hit_by_pitch
+        ,hd.sum_Home_run
+        ,hd.sum_Strikeout
+        ,hd.sum_Single
+        ,hd.sum_Double
+        ,hd.sum_Triple
+        ,hd.sum_Sac_Fly
+        from joined_historic_data_game_boxscore hd
+    join game g on hd.game_id=g.game_id;
+
+
     select
-            last_100.batter
-            ,sum(last_100.total_Hit)/sum(nullif(last_100.total_atBat,0)) as average_at_bat
-            ,sum(last_100.total_Hit_By_Pitch)/sum(nullif(last_100.total_Hit_By_Pitch)) as average_hit_by_pitch
-            ,sum(last_100.total_Home_run)/sum(nullif(last_100.total_Home_run)) as average_home_run
-            ,sum(last_100.total_Strikeout)/sum(nullif(last_100.total_Strikeout)) as average_sum_Strikeout
-            ,sum(last_100.total_Single)/sum(nullif(last_100.total_Single)) as average_single
-            ,sum(last_100.total_Double)/sum(nullif(last_100.total_Double)) as average_Double
-            ,sum(last_100.total_Triple)/sum(nullif(last_100.total_Triple)) as average_Triple
-            ,sum(last_100.total_Sac_Fly)/sum(nullif(last_100.total_Sac_Fly)) as average_sac_fly
+        bc1.local_date as bc1_date
+        , bc1.batter
+        , sum(bc2.Hit)
+        , COUNT(*) AS cnt
+    from example bc1
+    join example bc2 ON
+        bc1.local_date > DATE_ADD(bc2.local_date , INTERVAL -100 DAY) AND bc1.batter =bc2.batter
+    WHERE bc1.batter = 110029
+     group by bc1.local_date, bc1.batter
+     order by bc1.batter, bc1.local_date ASC , bc2.local_date ASC;
 
-    from last_100_days_per_player last_100
-    group by last_100.batter
-;
-select * from last_100_days_rol_avg_per_player limit 1,10;
+
+    select bc1.local_date, sum(bc2.Hit) as rolling_sum
+    from example bc1 inner join example bc2 on datediff(bc1.local_date , bc2.local_date) between 0 and 99
+     group by bc1.local_date
+     order by bc1.local_date;

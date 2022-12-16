@@ -27,10 +27,24 @@ def main():
     query = """select * from joined_team_batting_pitching_boxscore_diff;"""
 
     df = pd.read_sql_query(query, sql_engine)
+
+    # removed batting_go_to_fo_or_ao_home ,batting_go_to_fo_or_ao_away,
+    # pitching_go_to_ao_home, pitching_go_to_ao_away
+    # batting_go_to_fo_or_ao_diff, pitching_go_to_ao_diff as they have many missing values
+    features_to_delete = [
+        "batting_go_to_fo_or_ao_home",
+        "batting_go_to_fo_or_ao_away",
+        "pitching_go_to_ao_home",
+        "pitching_go_to_ao_away",
+        "batting_go_to_fo_or_ao_diff",
+        "pitching_go_to_ao_diff",
+    ]
     # remove missing values
+    df = df.drop(features_to_delete, axis=1)
+    # the remaining 219 missing values can be deleted
     df = df.dropna()
-    del df["game_id"]
-    del df["team_id"]
+    # drop features that are not helpful
+    df = df.drop(["game_id", "team_id"])
     df["winner"] = [1 if x == "H" else 0 for x in df["winner_home_or_away"]]
     del df["winner_home_or_away"]
     response_name = "winner"

@@ -1,5 +1,3 @@
-use test;
-
 -- create index on game and team_pitching_count table to make join faster
 create or replace INDEX game_local_date_index
 ON game (game_id,local_date)
@@ -95,6 +93,7 @@ select t1.local_date as t1_date
         , t1.game_id
         , t1.team_id
         , t1.home_or_away
+        , t1.local_date
         , sum(t2.Single) as batting_single
         , sum(t2.Double) as batting_double
         , sum(t2.Triple) as batting_triple
@@ -110,8 +109,9 @@ select t1.local_date as t1_date
         , IFNULL(sum(t2.Ground_Out)/sum(NULLIF(t2.Flyout,0)),0) as batting_go_to_fo_or_ao
         , IFNULL(sum(t2.atBat)/sum(NULLIF(t2.Hit,0)),0) as batting_average_batting
         , IFNULL(sum(t2.Home_Run)/sum(NULLIF(t2.Hit,0)),0) as batting_hr_to_hit
-        , sum(t2.Hit) + sum(t2.Walk) + sum(t2.Hit_by_Pitch) as times_on_base_or_tob
-        , sum(t2.Single) + sum(t2.Double) + sum(t2.Triple) + sum(t2.Home_Run) as extra_base_hits_or_ebh
+        , sum(NULLIF(t2.Hit,0)) + sum(NULLIF(t2.Walk,0)) + sum(NULLIF(t2.Hit_by_Pitch,0)) as times_on_base_or_tob
+        , sum(NULLIF(t2.Single,0)) + sum(NULLIF(t2.Double,0)) + sum(NULLIF(t2.Triple,0)) + sum(NULLIF(t2.Home_Run,0)) as extra_base_hits_or_ebh
+        , IFNULL(sum(NULLIF(t2.Home_Run,0)) / sum(NULLIF(t2.Single,0)) + sum(NULLIF(t2.Double,0)) + sum(NULLIF(t2.Triple,0)),0) as home_run_to_single_double_triple_ratio
     from joined_game_team_batting_counts t1
     join joined_game_team_batting_counts t2 ON
         t1.local_date > DATE_ADD(t2.local_date , INTERVAL -100 DAY) AND t1.team_id =t2.team_id
@@ -128,6 +128,7 @@ ON rolling_game_team_pitching (game_id,team_id)
 -- join rolling_game_team_pitching and rolling_game_team_batting
 CREATE or REPLACE TABLE joined_team_batting_pitching
  select rgtp.*
+ 		,rgtb.local_date
  		,rgtb.batting_single
  		,rgtb.batting_double
  		,rgtb.batting_triple
@@ -145,6 +146,7 @@ CREATE or REPLACE TABLE joined_team_batting_pitching
  		,rgtb.batting_hr_to_hit
  		,rgtb.times_on_base_or_tob
  		,rgtb.extra_base_hits_or_ebh
+ 		,rgtb.home_run_to_single_double_triple_ratio
  from rolling_game_team_pitching rgtp
  join rolling_game_team_batting rgtb on rgtb.team_id=rgtp.team_id and rgtb.game_id=rgtp.game_id;
 
@@ -161,8 +163,10 @@ SELECT * from joined_team_batting_pitching limit 1,10;
 -- merge two tables
 CREATE or REPLACE TABLE joined_team_batting_pitching_boxscore
 select 	jtbp_home.game_id as game_id
+		,jtbp_home.local_date as local_date
 		,bs.winner_home_or_away as winner_home_or_away
 		,jtbp_home.team_id as team_id
+		,jtbp_home.home_run_to_single_double_triple_ratio as home_run_to_single_double_triple_ratio_home
 		,jtbp_home.batting_single as batting_single_home
  		,jtbp_home.batting_double as batting_double_home
  		,jtbp_home.batting_triple as batting_triple_home
@@ -180,6 +184,7 @@ select 	jtbp_home.game_id as game_id
  		,jtbp_home.batting_hr_to_hit as batting_hr_to_hit_home
  		,jtbp_home.times_on_base_or_tob as batting_tob_home
  		,jtbp_home.extra_base_hits_or_ebh as extra_base_hits_or_ebh_home
+ 		,jtbp_away.home_run_to_single_double_triple_ratio as home_run_to_single_double_triple_ratio_away
  		,jtbp_away.batting_single as batting_single_away
  		,jtbp_away.batting_double as batting_double_away
  		,jtbp_away.batting_triple as batting_triple_away
@@ -226,3 +231,22 @@ join joined_team_batting_pitching jtbp_home
  on bs.game_id=jtbp_home.game_id AND jtbp_home.home_or_away='H'
 join joined_team_batting_pitching jtbp_away
 on bs.game_id=jtbp_away.game_id AND jtbp_away.home_or_away='A';
+
+-- create differences statistics
+SELECT *
+	,jtbpb.batting_single_home-jtbpb.batting_single_away as batting_single_diff
+	,jtbpb.batting_double_home-jtbpb.batting_double_away as batting_double_diff
+	,jtbpb.batting_triple_home-jtbpb.batting_triple_away as batting_triple_diff
+	,jtbpb.batting_atbat_home-jtbpb.batting_atbat_away as batting_atbat_diff
+	,jtbpb.batting_homerun_home-jtbpb.batting_homerun_away as batting_homerun_diff
+	,jtbpb.batting_homerun_home-jtbpb.batting_homerun_away as batting_homerun_diff
+	,jtbpb.batting_hit_home-jtbpb.batting_hit_away as batting_hit_diff
+	,jtbpb.batting_hit_by_pitch_home-jtbpb.batting_hit_by_pitch_away  as batting_hit_by_pitch_diff
+	,jtbpb.batting_baseonball_or_walk_home-jtbpb.batting_baseonball_or_walk_away as batting_baseonball_or_walk_diff
+	,jtbpb.home_run_to_single_double_triple_ratio_home - jtbpb.home_run_to_single_double_triple_ratio_away as home_run_to_single_double_triple_ratio_diff
+	,jtbpb.batting_ab_to_hr_home-jtbpb.batting_ab_to_hr_away as batting_ab_to_hr_diff
+	,jtbpb.batting_groundout_home - jtbpb.batting_groundout_away as batting_groundout_diff
+	,jtbpb.batting_flyout_or_airout_home - jtbpb.batting_flyout_or_airout_away as batting_flyout_or_airout_diff
+
+
+FROM joined_team_batting_pitching_boxscore jtbpb;

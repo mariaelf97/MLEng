@@ -2,7 +2,8 @@
 -- first join the game and batter counts table and save the results as a temporary table
 create or replace temporary table joined_batter_game as
     select
-            g.local_date
+            row_number() over(order by batter asc) as idx
+            ,g.local_date
             ,bc.batter
             ,bc.game_id
             ,bc.Hit
@@ -44,13 +45,14 @@ ON joined_batter_game (batter,local_date)
 
 create or replace temporary table last_100_days_per_player
     select    abg1.batter
+            , abg1.game_id
             , abg1.local_date
             , abg1.Hit+sum(coalesce(abg2.Hit,0)) total_Hit
             , abg1.atBat+sum(coalesce(abg2.atBat,0)) total_atBat
-    from joined_batter_game abg1 force index (batter_indx)
+    from joined_batter_game abg1
     left join joined_batter_game abg2 on abg1.batter=abg2.batter
     and timestampdiff(day,abg1.local_date,abg2.local_date)<=99 and timestampdiff(day,abg1.local_date,abg2.local_date)>0
-    group by abg1.batter,abg1.local_date,abg1.Hit, abg1.atBat
+    group by abg1.batter,abg1.local_date,abg1.Hit, abg1.atBat, abg1.game_id
     order by 1,2
 ;
 

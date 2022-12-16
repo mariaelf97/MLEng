@@ -1,7 +1,6 @@
 black
 flake8==5.0.4
 isort[requirements]
-mariadb
 matplotlib
 nose
 numpy
@@ -9,9 +8,7 @@ pandas
 pip-tools
 pre-commit
 plotly
-pyspark
 scikit-learn
-seaborn
 sqlalchemy
 sklearn
 statsmodels

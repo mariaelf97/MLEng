@@ -1,12 +1,16 @@
+
 import sys
 from itertools import product
 
 import pandas as pd
+import plotly.express as px
 import sqlalchemy
 from brute_force import brute_force
 from correlation import get_correlation
 from mean_of_response import mean_of_response
+from model import predict_model, random_forest_var_imp
 from predictor_response_plots import predictor_response_plots
+from regression import logistic_reg
 
 
 def main():
@@ -33,11 +37,7 @@ def main():
     response_name = "winner"
     predictors_list = [col for col in df.columns if col != response_name]
 
-    # save predictor response plots as html output
-    for predictor in predictors_list:
-        predictor_response_plots(df, predictor, response_name)
-
-    # generate mean of response table with their plots
+    # mean of response, p-value, t-value, predictor response plots
     d = []
     for i in range(0, len(predictors_list)):
         mean_resp_weighted = mean_of_response(
@@ -46,20 +46,40 @@ def main():
         mean_resp_unweighted = mean_of_response(
             df, predictors_list[i], response_name, figure=False
         )[1]
-        mean_of_response(df, predictors_list[i], response_name, figure=True)
-        plot_link = (
-            predictors_list[i] + "-" + response_name + "_mean_of_response_plot.html"
+        # predictor_response_plots(df,predictors_list[i],response_name)
+        # mean_of_response(df, predictors_list[i], response_name, figure=True)
+        p_value = logistic_reg(df, predictors_list[i], response_name)[0]
+        t_value = logistic_reg(df, predictors_list[i], response_name)[1]
+        plot_link_mean_of_response = (
+            "output/"
+            + predictors_list[i]
+            + "-"
+            + response_name
+            + "_mean_of_response_plot.html"
+        )
+        plot_link_predictor_response = (
+            "output/"
+            + predictors_list[i]
+            + "-"
+            + response_name
+            + "_predictor_response_plot.html"
         )
         d.append(
             {
                 "predictor": predictors_list[i],
                 "mean_squared_diff_weighted": mean_resp_weighted,
                 "mean_squared_diff": mean_resp_unweighted,
-                "plot": f'<a href="{plot_link}">Link</a>',
+                "p_value": p_value,
+                "t_value": t_value,
+                "predictor response plot": f'<a href="{plot_link_predictor_response}">Link</a>',
+                "mean of response plot": f'<a href="{plot_link_mean_of_response}">Link</a>',
             }
         )
     mean_of_resp_table = pd.DataFrame(d)
-    mean_of_resp_table.to_html("mean_of_response_table.html", escape=False)
+    mean_of_resp_table = mean_of_resp_table.sort_values(
+        by="mean_squared_diff_weighted", ascending=False
+    )
+    mean_of_resp_table.to_html("output/mean_of_response_table.html", escape=False)
 
     # generate pair-wise brute-force and correlation values
     var_list = list(product(predictors_list, predictors_list))
@@ -76,8 +96,10 @@ def main():
         brute_force_value = brute_force(
             df, var_list[i][0], var_list[i][1], response_name, figure=False
         )
-        brute_force(df, var_list[i][0], var_list[i][1], response_name, figure=True)
-        plot_link = var_list[i][0] + "-" + var_list[i][1] + "_brute_force_plot.html"
+        # brute_force(df, var_list[i][0], var_list[i][1], response_name, figure=True)
+        plot_link = (
+            "output/" + var_list[i][0] + "-" + var_list[i][1] + "_brute_force_plot.html"
+        )
         d.append(
             {
                 "predictor1": var1,
@@ -87,10 +109,51 @@ def main():
                 "plot": f'<a href="{plot_link}">Link</a>',
             }
         )
-    df = pd.DataFrame(d)
-    df["correlation_absolute_value"] = abs(df["correlation"])
-    df = df.sort_values(by="correlation_absolute_value", ascending=False)
-    df.to_html("pair_wise_variable_table.html", escape=False)
+    pair_wise_df = pd.DataFrame(d)
+    pair_wise_df["correlation_absolute_value"] = abs(pair_wise_df["correlation"])
+    pair_wise_df = pair_wise_df.sort_values(
+        by="correlation_absolute_value", ascending=False
+    )
+    pair_wise_df.to_html("output/pair_wise_variable_table.html", escape=False)
+
+    # correlation matrix
+    df_correlation_matrix = df[predictors_list].corr()
+    corr_abs = df[predictors_list].corr().abs()
+    unstacked_corr_mat = corr_abs.unstack()
+    unstacked_corr_mat_sorted = pd.DataFrame(
+        unstacked_corr_mat.sort_values(kind="quicksort")
+    )
+    unstacked_corr_mat_sorted.to_html(
+        "output/+unstacked_corr_mat_sorted.html", escape=False
+    )
+    df_correlation_matrix.to_html("correlation_matrix.html", escape=False)
+    fig = px.imshow(df_correlation_matrix)
+    fig.write_html("output/+correlation_heatmap.html")
+
+    # variable importance
+    rf = pd.DataFrame(random_forest_var_imp(df, predictors_list, response_name))
+    rf.to_html("output/+random_forest_variable_importance.html", escape=False)
+
+    # choose features to include in the model
+    predictors_to_include = [
+        "batting_average_batting_home",
+        "pitching_so_to_hr_away",
+        "pitching_ab_to_hr_home",
+        "batting_ab_to_hr_home",
+        "pitching_so_to_hr_home",
+        "batting_hr_to_hit_home",
+        "batting_average_batting_away",
+        "pitching_ab_to_hr_away",
+        "batting_go_to_fo_or_ao_home",
+        "batting_w_to_sr_away",
+        "batting_hr_to_hit_away",
+        "batting_groundout_home",
+        "pitching_groundout_home",
+        "batting_w_to_sr_home",
+    ]
+
+    # Random forest model
+    predict_model(df, predictors_to_include, response_name)
 
 
 if __name__ == "__main__":

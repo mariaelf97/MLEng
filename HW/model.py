@@ -10,6 +10,7 @@ from sklearn.preprocessing import StandardScaler
 def train_test_split_func(dataset, predictor_list, response_name):
     features = dataset[predictor_list]
     labels = dataset[response_name]
+    train = dataset[predictor_list]
     train_features, test_features, train_labels, test_labels = train_test_split(
         features, labels, test_size=0.2, random_state=0, stratify=labels
     )
@@ -28,7 +29,7 @@ def random_forest_var_imp(dataset, predictor_list, response):
     return forest_importances.sort_values(ascending=False)
 
 
-def predict_model(dataset, predictor_list, response_name):
+def predict_model(dataset, predictor_list, response_name, RF=True):
     train_features, test_features, train_labels, test_labels = train_test_split_func(
         dataset, predictor_list, response_name
     )

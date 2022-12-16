@@ -49,7 +49,9 @@ def brute_force(dataset, predictor1, predictor2, response, figure=True):
                 values="mean_squared_diff_weighted",
             )
             fig = px.imshow(df_wide)
-            fig.write_html(predictor1 + "-" + predictor2 + "_brute_force_plot.html")
+            fig.write_html(
+                "output/" + predictor1 + "-" + predictor2 + "_brute_force_plot.html"
+            )
 
         else:
             return mean_squared_diff_weighted
@@ -124,7 +126,9 @@ def brute_force(dataset, predictor1, predictor2, response, figure=True):
                 values="mean_squared_diff_weighted",
             )
             fig = px.imshow(df_wide)
-            fig.write_html(predictor1 + "-" + predictor2 + "_brute_force_plot.html")
+            fig.write_html(
+                "output/" + predictor1 + "-" + predictor2 + "_brute_force_plot.html"
+            )
 
         else:
             return binned_pred_resp_counts["mean_squared_diff_weighted"].sum() / len(
@@ -185,7 +189,9 @@ def brute_force(dataset, predictor1, predictor2, response, figure=True):
                 values="mean_squared_diff_weighted",
             )
             fig = px.imshow(df_wide)
-            fig.write_html(predictor1 + "-" + predictor2 + "_brute_force_plot.html")
+            fig.write_html(
+                "output/" + predictor1 + "-" + predictor2 + "_brute_force_plot.html"
+            )
 
         else:
             return bin_df_merged["mean_squared_diff_weighted"].sum() / len(

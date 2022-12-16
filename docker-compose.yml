@@ -22,5 +22,6 @@ services:
     image: baseball
     volumes:
       - ./baseball.sql:/App/baseball.sql
+      - ./output :/App/output
     #command: sleep 9999999
-    restart: unless-stopped
+    restart: on-failure

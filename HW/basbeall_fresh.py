@@ -24,7 +24,7 @@ def main():
 
     sql_engine = sqlalchemy.create_engine(connect_string)
 
-    query = """select * from joined_team_batting_pitching_boxscore;"""
+    query = """select * from joined_team_batting_pitching_boxscore_diff;"""
 
     df = pd.read_sql_query(query, sql_engine)
     # remove missing values

@@ -233,12 +233,12 @@ join joined_team_batting_pitching jtbp_away
 on bs.game_id=jtbp_away.game_id AND jtbp_away.home_or_away='A';
 
 -- create differences statistics
+CREATE or REPLACE table joined_team_batting_pitching_boxscore_diff
 SELECT *
 	,jtbpb.batting_single_home-jtbpb.batting_single_away as batting_single_diff
 	,jtbpb.batting_double_home-jtbpb.batting_double_away as batting_double_diff
 	,jtbpb.batting_triple_home-jtbpb.batting_triple_away as batting_triple_diff
 	,jtbpb.batting_atbat_home-jtbpb.batting_atbat_away as batting_atbat_diff
-	,jtbpb.batting_homerun_home-jtbpb.batting_homerun_away as batting_homerun_diff
 	,jtbpb.batting_homerun_home-jtbpb.batting_homerun_away as batting_homerun_diff
 	,jtbpb.batting_hit_home-jtbpb.batting_hit_away as batting_hit_diff
 	,jtbpb.batting_hit_by_pitch_home-jtbpb.batting_hit_by_pitch_away  as batting_hit_by_pitch_diff
@@ -247,6 +247,23 @@ SELECT *
 	,jtbpb.batting_ab_to_hr_home-jtbpb.batting_ab_to_hr_away as batting_ab_to_hr_diff
 	,jtbpb.batting_groundout_home - jtbpb.batting_groundout_away as batting_groundout_diff
 	,jtbpb.batting_flyout_or_airout_home - jtbpb.batting_flyout_or_airout_away as batting_flyout_or_airout_diff
-
-
+	,jtbpb.batting_w_to_sr_home - jtbpb.batting_w_to_sr_away as batting_w_to_sr_diff
+	,jtbpb.batting_go_to_fo_or_ao_home - jtbpb.batting_go_to_fo_or_ao_away as batting_go_to_fo_or_ao_diff
+	,jtbpb.batting_average_batting_home - jtbpb.batting_average_batting_away as batting_average_batting_diff
+	,jtbpb.batting_hr_to_hit_home - jtbpb.batting_hr_to_hit_away as batting_hr_to_hit_diff
+	,jtbpb.batting_tob_home - jtbpb.batting_tob_away as batting_tob_away_diff
+	,jtbpb.extra_base_hits_or_ebh_home - jtbpb.extra_base_hits_or_ebh_away as extra_base_hits_or_ebh_diff
+	,jtbpb.pitching_single_home-jtbpb.pitching_single_away as pitching_single_diff
+	,jtbpb.pitching_double_home-jtbpb.pitching_double_away as pitching_double_diff
+	,jtbpb.pitching_triple_home-jtbpb.pitching_triple_away as pitching_triple_diff
+	,jtbpb.pitching_atbat_home-jtbpb.pitching_atbat_away as pitching_atbat_diff
+	,jtbpb.pitching_homerun_home - jtbpb.pitching_homerun_away as pitching_homerun_diff
+ 	,jtbpb.pitching_hit_home - jtbpb.pitching_hit_away as pitching_hit_diff
+ 	,jtbpb.pitching_baseonball_or_walk_home - jtbpb.pitching_baseonball_or_walk_away as pitching_baseonball_or_walk_home_diff
+ 	,jtbpb.pitching_go_to_ao_home - jtbpb.pitching_go_to_ao_away as pitching_go_to_ao_diff
+ 	,jtbpb.pitching_groundout_home - jtbpb.pitching_groundout_away as pitching_groundout
+ 	,jtbpb.pitching_flyout_or_airout_home - jtbpb.pitching_flyout_or_airout_away as pitching_flyout_or_airout_diff
+ 	,jtbpb.pitching_so_to_hr_home - jtbpb.pitching_so_to_hr_away as pitching_so_to_hr_diff
+ 	,jtbpb.pitching_ab_to_hr_home - jtbpb.pitching_ab_to_hr_away as pitching_ab_to_hr_diff
 FROM joined_team_batting_pitching_boxscore jtbpb;
+SELECT * FROM joined_team_batting_pitching_boxscore_diff;

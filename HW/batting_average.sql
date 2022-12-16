@@ -45,12 +45,12 @@ select t1.local_date as t1_date
         , sum(t2.Home_Run) as pitching_homerun
         , sum(t2.Hit) as pitching_hit
         , sum(t2.Walk) as pitching_baseonball_or_walk
-        , IFNULL(sum(t2.ground_out)/sum(NULLIF(t2.Flyout,0)),0) as pitching_go_to_ao
+        , sum(t2.ground_out)/sum(NULLIF(t2.Flyout,0)) as pitching_go_to_ao
         , sum(t2.ground_out) as pitching_groundout
         , sum(t2.Flyout) as pitching_flyout_or_airout
-        , IFNULL(sum(t2.Strikeout)/sum(NULLIF(t2.Home_Run,0)),0) as pitching_so_to_hr
-        , IFNULL(sum(t2.atBat)/sum(NULLIF(t2.Home_Run,0)),0) as pitching_ab_to_hr
-        , IFNULL(sum(t2.atBat)/sum(NULLIF(t2.Hit,0)),0) as pitching_batting_average
+        , sum(t2.Strikeout)/sum(NULLIF(t2.Home_Run,0)) as pitching_so_to_hr
+        , sum(t2.atBat)/sum(NULLIF(t2.Home_Run,0)) as pitching_ab_to_hr
+        , sum(t2.atBat)/sum(NULLIF(t2.Hit,0)) as pitching_batting_average
     from joined_game_team_pitching_counts t1
     join joined_game_team_pitching_counts t2 ON
         t1.local_date > DATE_ADD(t2.local_date , INTERVAL -100 DAY) AND t1.team_id =t2.team_id
@@ -102,16 +102,16 @@ select t1.local_date as t1_date
         , sum(t2.Hit) as batting_hit
         , SUM(t2.Hit_by_Pitch) as batting_hit_by_pitch
         , sum(t2.Walk) as batting_baseonball_or_walk
-        , IFNULL(sum(t2.atBat)/sum(NULLIF(t2.Home_Run,0)),0) as batting_ab_to_hr
+        , sum(t2.atBat)/sum(NULLIF(t2.Home_Run,0)) as batting_ab_to_hr
         , sum(t2.ground_out) as batting_groundout
         , sum(t2.Flyout) as batting_flyout_or_airout
-        , IFNULL(sum(t2.Walk)/sum(NULLIF(t2.Strikeout,0)),0) as batting_w_to_sr
-        , IFNULL(sum(t2.Ground_Out)/sum(NULLIF(t2.Flyout,0)),0) as batting_go_to_fo_or_ao
-        , IFNULL(sum(t2.atBat)/sum(NULLIF(t2.Hit,0)),0) as batting_average_batting
-        , IFNULL(sum(t2.Home_Run)/sum(NULLIF(t2.Hit,0)),0) as batting_hr_to_hit
-        , sum(NULLIF(t2.Hit,0)) + sum(NULLIF(t2.Walk,0)) + sum(NULLIF(t2.Hit_by_Pitch,0)) as times_on_base_or_tob
-        , sum(NULLIF(t2.Single,0)) + sum(NULLIF(t2.Double,0)) + sum(NULLIF(t2.Triple,0)) + sum(NULLIF(t2.Home_Run,0)) as extra_base_hits_or_ebh
-        , IFNULL(sum(NULLIF(t2.Home_Run,0)) / sum(NULLIF(t2.Single,0)) + sum(NULLIF(t2.Double,0)) + sum(NULLIF(t2.Triple,0)),0) as home_run_to_single_double_triple_ratio
+        , sum(t2.Walk)/sum(NULLIF(t2.Strikeout,0)) as batting_w_to_sr
+        , sum(t2.Ground_Out)/sum(NULLIF(t2.Flyout,0)) as batting_go_to_fo_or_ao
+        , sum(t2.atBat)/sum(NULLIF(t2.Hit,0)) as batting_average_batting
+        , sum(t2.Home_Run)/sum(NULLIF(t2.Hit,0)) as batting_hr_to_hit
+        , sum(t2.Hit) + sum(t2.Walk) + sum(t2.Hit_by_Pitch) as times_on_base_or_tob
+        , sum(t2.Single) + sum(t2.Double) + sum(t2.Triple) + sum(t2.Home_Run) as extra_base_hits_or_ebh
+        , sum(t2.Home_Run) / sum(NULLIF(t2.Single,0)) + sum(NULLIF(t2.Double,0)) + sum(NULLIF(t2.Triple,0)) as home_run_to_single_double_triple_ratio
     from joined_game_team_batting_counts t1
     join joined_game_team_batting_counts t2 ON
         t1.local_date > DATE_ADD(t2.local_date , INTERVAL -100 DAY) AND t1.team_id =t2.team_id

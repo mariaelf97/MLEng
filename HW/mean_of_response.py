@@ -85,9 +85,19 @@ def mean_of_response(dataset, predictor, response, figure=False):
             ),
             secondary_y=True,
         )
-        fig.write_html(predictor + "-" + response + "_mean_of_response_plot.html")
+        fig.write_html(
+            "output/" + predictor + "-" + response + "_mean_of_response_plot.html"
+        )
 
     else:
         return binned_pred_resp_counts["mean_squared_diff_weighted"].sum() / len(
+            binned_pred_resp_counts.index
+        ), pow(
+            (
+                binned_pred_resp_counts["population_mean"]
+                - binned_pred_resp_counts["bin_means"]
+            ),
+            2,
+        ).sum() / len(
             binned_pred_resp_counts.index
         )

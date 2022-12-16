@@ -16,11 +16,18 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Get necessary python libraries
-COPY HW/mybaseball.sql .
+COPY requirements.txt .
+RUN pip3 install --compile --no-cache-dir -r requirements.txt
+COPY HW/batting_average.sql .
+COPY HW/basbeall_fresh.py .
+COPY HW/brute_force.py .
+COPY HW/correlation.py .
+COPY HW/define_data_type.py .
+COPY HW/mean_of_response.py .
+COPY HW/model.py .
+COPY HW/predictor_response_plots.py .
 COPY HW/mybashscript.sh .
+COPY HW/regression.py .
 
 # Run app
-#RUN chmod +x HW/mybashscript.sh
 CMD ./mybashscript.sh
-
-#docker system prune -a --volumes to clean cache

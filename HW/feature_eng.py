@@ -46,9 +46,8 @@ def save_html(file, var1, var2, mean_res=False, two_predictors=False):
     fig_file.close()
 
 
-def make_clickable(url):
-    name = os.path.basename(url)
-    return '<a href="./HW/{}">{}</a>'.format(url, name)
+def make_clickable(url, name):
+    return f'<a href="{url}">{name}</a>'
 
 
 def predictor_response_plots(dataset, predictor, response):
@@ -543,11 +542,10 @@ def generate_tables(
                 "predictor1": var1,
                 "predictor2": var2,
                 "correlation": corr,
-                "plot": plot_link,
+                "plot": f'<a href="{plot_link}">{plot_link}</a>',
             }
         )
     df = pd.DataFrame(d)
-    df.style.format({"plot": make_clickable})
     df["correlation_absolute_value"] = abs(df["correlation"])
     df = df.sort_values(by="correlation_absolute_value", ascending=False)
     return df
@@ -584,11 +582,10 @@ def generate_brute_force(
                 "predictor1": var1,
                 "predictor2": var2,
                 "weighted_mean_response": brute_force_value,
-                "plot": plot_link,
+                "plot": f'<a href="{plot_link}">{plot_link}</a>',
             }
         )
     df = pd.DataFrame(d)
-    df.style.format({"plot": make_clickable})
     return df
 
 

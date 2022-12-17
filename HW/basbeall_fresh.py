@@ -71,6 +71,8 @@ def main():
     rf = pd.DataFrame(random_forest_var_imp(df, response_name))
     rf.to_html("output/random_forest_variable_importance.html", escape=False)
 
+    predictors_list = rf.index
+
     # mean of response, p-value, t-value, predictor response plots
     d = []
     for i in range(0, len(predictors_list)):
@@ -85,18 +87,10 @@ def main():
         p_value = logistic_reg(df, predictors_list[i], response_name)[0]
         t_value = logistic_reg(df, predictors_list[i], response_name)[1]
         plot_link_mean_of_response = (
-            "output/"
-            + predictors_list[i]
-            + "-"
-            + response_name
-            + "_mean_of_response_plot.html"
+            predictors_list[i] + "-" + response_name + "_mean_of_response_plot.html"
         )
         plot_link_predictor_response = (
-            "output/"
-            + predictors_list[i]
-            + "-"
-            + response_name
-            + "_predictor_response_plot.html"
+            predictors_list[i] + "-" + response_name + "_predictor_response_plot.html"
         )
         d.append(
             {
@@ -130,10 +124,8 @@ def main():
         brute_force_value = brute_force(
             df, var_list[i][0], var_list[i][1], response_name, figure=False
         )
-        # brute_force(df, var_list[i][0], var_list[i][1], response_name, figure=True)
-        plot_link = (
-            "output/" + var_list[i][0] + "-" + var_list[i][1] + "_brute_force_plot.html"
-        )
+        brute_force(df, var_list[i][0], var_list[i][1], response_name, figure=True)
+        plot_link = var_list[i][0] + "-" + var_list[i][1] + "_brute_force_plot.html"
         d.append(
             {
                 "predictor1": var1,

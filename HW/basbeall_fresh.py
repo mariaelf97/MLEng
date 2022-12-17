@@ -1,6 +1,7 @@
 import sys
 from itertools import product
 
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import sqlalchemy
@@ -28,6 +29,8 @@ def main():
 
     df = pd.read_sql_query(query, sql_engine)
 
+    # replace blank values with NAs
+    df = df.mask(df == "")
     # removed batting_go_to_fo_or_ao_home ,batting_go_to_fo_or_ao_away,
     # pitching_go_to_ao_home, pitching_go_to_ao_away
     # batting_go_to_fo_or_ao_diff, pitching_go_to_ao_diff as they have many missing values
@@ -42,13 +45,28 @@ def main():
     # remove missing values
     df = df.drop(features_to_delete, axis=1)
     # the remaining 219 missing values can be deleted
+    # increased to 573 once replaced missing values with nan
     df = df.dropna()
     # drop features that are not helpful
-    df = df.drop(["game_id", "team_id"])
+    df = df.drop(["game_id", "team_id"], axis=1)
+    # defining winner in numeric values because the model can't handle categorical ones
     df["winner"] = [1 if x == "H" else 0 for x in df["winner_home_or_away"]]
     del df["winner_home_or_away"]
     response_name = "winner"
-    predictors_list = [col for col in df.columns if col != response_name]
+    predictors_list = [
+        col for col in df.columns if col != [response_name, "local_date"]
+    ]
+
+    # removing highly correlated variables
+    # correlation matrix
+    df_correlation_matrix = df[predictors_list].corr().abs()
+    upper_tri = df_correlation_matrix.where(
+        np.triu(np.ones(df_correlation_matrix.shape), k=1).astype(np.bool)
+    )
+    to_drop = [column for column in upper_tri.columns if any(upper_tri[column] > 0.7)]
+    df = df.drop(df.columns[to_drop], axis=1)
+    fig = px.imshow(upper_tri)
+    fig.write_html("output/correlation_heatmap.html")
 
     # mean of response, p-value, t-value, predictor response plots
     d = []
@@ -128,20 +146,6 @@ def main():
         by="correlation_absolute_value", ascending=False
     )
     pair_wise_df.to_html("output/pair_wise_variable_table.html", escape=False)
-
-    # correlation matrix
-    df_correlation_matrix = df[predictors_list].corr()
-    corr_abs = df[predictors_list].corr().abs()
-    unstacked_corr_mat = corr_abs.unstack()
-    unstacked_corr_mat_sorted = pd.DataFrame(
-        unstacked_corr_mat.sort_values(kind="quicksort")
-    )
-    unstacked_corr_mat_sorted.to_html(
-        "output/+unstacked_corr_mat_sorted.html", escape=False
-    )
-    df_correlation_matrix.to_html("correlation_matrix.html", escape=False)
-    fig = px.imshow(df_correlation_matrix)
-    fig.write_html("output/+correlation_heatmap.html")
 
     # variable importance
     rf = pd.DataFrame(random_forest_var_imp(df, predictors_list, response_name))

@@ -13,7 +13,11 @@ RUN apt-get update \
      python3-pip \
      python3-dev \
      mariadb-client \
-  && rm -rf /var/lib/apt/lists/*
+     libmariadb-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+
+RUN pip3 install --upgrade mysql-connector-python
 
 # Get necessary python libraries
 COPY requirements.txt .

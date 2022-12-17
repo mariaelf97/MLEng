@@ -14,10 +14,10 @@ from regression import logistic_reg
 
 
 def main():
-    db_user = ""
-    db_pass = ""  # pragma: allowlist secret
-    db_host = "localhost"
-    db_database = "test"
+    db_user = "root"
+    db_pass = "Password123"  # pragma: allowlist secret
+    db_host = "mariadb"
+    db_database = "baseball"
     connect_string = (
         f"mariadb+mariadbconnector://{db_user}:{db_pass}@{db_host}/{db_database}"
     )

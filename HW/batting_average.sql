@@ -266,4 +266,4 @@ SELECT *
  	,jtbpb.pitching_so_to_hr_home - jtbpb.pitching_so_to_hr_away as pitching_so_to_hr_diff
  	,jtbpb.pitching_ab_to_hr_home - jtbpb.pitching_ab_to_hr_away as pitching_ab_to_hr_diff
 FROM joined_team_batting_pitching_boxscore jtbpb;
-SELECT * FROM joined_team_batting_pitching_boxscore_diff;
+

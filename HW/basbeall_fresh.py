@@ -67,6 +67,9 @@ def main():
     df = df.drop(df.columns[to_drop], axis=1)
     fig = px.imshow(upper_tri)
     fig.write_html("output/correlation_heatmap.html")
+    # variable importance
+    rf = pd.DataFrame(random_forest_var_imp(df, predictors_list, response_name))
+    rf.to_html("output/+random_forest_variable_importance.html", escape=False)
 
     # mean of response, p-value, t-value, predictor response plots
     d = []
@@ -146,10 +149,6 @@ def main():
         by="correlation_absolute_value", ascending=False
     )
     pair_wise_df.to_html("output/pair_wise_variable_table.html", escape=False)
-
-    # variable importance
-    rf = pd.DataFrame(random_forest_var_imp(df, predictors_list, response_name))
-    rf.to_html("output/+random_forest_variable_importance.html", escape=False)
 
     # choose features to include in the model
     predictors_to_include = [

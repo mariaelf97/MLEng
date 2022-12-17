@@ -142,26 +142,8 @@ def main():
     )
     pair_wise_df.to_html("output/pair_wise_variable_table.html", escape=False)
 
-    # choose features to include in the model
-    predictors_to_include = [
-        "batting_average_batting_home",
-        "pitching_so_to_hr_away",
-        "pitching_ab_to_hr_home",
-        "batting_ab_to_hr_home",
-        "pitching_so_to_hr_home",
-        "batting_hr_to_hit_home",
-        "batting_average_batting_away",
-        "pitching_ab_to_hr_away",
-        "batting_go_to_fo_or_ao_home",
-        "batting_w_to_sr_away",
-        "batting_hr_to_hit_away",
-        "batting_groundout_home",
-        "pitching_groundout_home",
-        "batting_w_to_sr_home",
-    ]
-
     # Random forest model
-    predict_model(df, predictors_to_include, response_name)
+    predict_model(df, predictors_list, response_name)
 
 
 if __name__ == "__main__":

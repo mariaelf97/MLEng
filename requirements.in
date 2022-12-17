@@ -2,6 +2,7 @@ black
 flake8==5.0.4
 isort[requirements]
 matplotlib
+mariadb
 nose
 numpy
 pandas

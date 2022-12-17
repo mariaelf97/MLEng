@@ -29,9 +29,9 @@ def random_forest_var_imp(dataset, response):
     return forest_importances.sort_values(ascending=False)
 
 
-def predict_model(dataset, predictor_list, response_name, RF=True):
+def predict_model(dataset, predictor_list, response_name):
     train_features, test_features, train_labels, test_labels = train_test_split_func(
-        dataset, predictor_list, response_name
+        dataset, response_name
     )
     rf_model_pipeline = Pipeline(
         steps=[

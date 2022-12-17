@@ -6,7 +6,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 
-def train_test_split_func(dataset, predictor_list, response_name):
+def train_test_split_func(dataset, response_name):
 
     train_dataset = dataset[dataset["local_date"] < "2011-06-02"]
     test_dataset = dataset[dataset["local_date"] >= "2011-06-02"]
@@ -17,11 +17,11 @@ def train_test_split_func(dataset, predictor_list, response_name):
     return train_features, test_features, train_labels, test_labels
 
 
-def random_forest_var_imp(dataset, predictor_list, response):
+def random_forest_var_imp(dataset, response):
     train_features, test_features, train_labels, test_labels = train_test_split_func(
-        dataset, predictor_list, response
+        dataset, response
     )
-    feature_names = dataset[predictor_list].columns
+    feature_names = train_features.columns
     forest = RandomForestClassifier(random_state=0)
     forest.fit(train_features, train_labels)
     importances = forest.feature_importances_

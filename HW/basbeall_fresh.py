@@ -64,12 +64,12 @@ def main():
         np.triu(np.ones(df_correlation_matrix.shape), k=1).astype(np.bool)
     )
     to_drop = [column for column in upper_tri.columns if any(upper_tri[column] > 0.7)]
-    df = df.drop(df.columns[to_drop], axis=1)
+    df = df.drop(to_drop, axis=1)
     fig = px.imshow(upper_tri)
     fig.write_html("output/correlation_heatmap.html")
     # variable importance
-    rf = pd.DataFrame(random_forest_var_imp(df, predictors_list, response_name))
-    rf.to_html("output/+random_forest_variable_importance.html", escape=False)
+    rf = pd.DataFrame(random_forest_var_imp(df, response_name))
+    rf.to_html("output/random_forest_variable_importance.html", escape=False)
 
     # mean of response, p-value, t-value, predictor response plots
     d = []

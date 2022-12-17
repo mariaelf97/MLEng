@@ -1,18 +1,19 @@
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 
 def train_test_split_func(dataset, predictor_list, response_name):
-    features = dataset[predictor_list]
-    labels = dataset[response_name]
-    train_features, test_features, train_labels, test_labels = train_test_split(
-        features, labels, test_size=0.2, random_state=0, stratify=labels
-    )
+
+    train_dataset = dataset[dataset["local_date"] < "2011-06-02"]
+    test_dataset = dataset[dataset["local_date"] >= "2011-06-02"]
+    train_features = train_dataset.drop([response_name, "local_date"], axis=1)
+    test_features = test_dataset.drop([response_name, "local_date"], axis=1)
+    train_labels = train_dataset[response_name]
+    test_labels = test_dataset[response_name]
     return train_features, test_features, train_labels, test_labels
 
 

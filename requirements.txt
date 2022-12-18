@@ -108,7 +108,7 @@ virtualenv==20.17.1
     # via pre-commit
 wheel==0.38.4
     # via pip-tools
-
+jinja2
 # The following packages are considered to be unsafe in a requirements file:
 # pip
 # setuptools

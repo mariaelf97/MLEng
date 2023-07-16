@@ -1,4 +1,4 @@
-# PythonProject
+# Please refer to the wiki for additional information
 
 # Setup for developement:
 

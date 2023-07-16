@@ -1,0 +1,27 @@
+version: "3.3"
+services:
+  mariadb:
+    image: lscr.io/linuxserver/mariadb:latest
+    container_name: mariadb
+    environment:
+      - MYSQL_USER:root
+      - PUID=501
+      - PGID=20
+      - MYSQL_ROOT_PASSWORD=Password123
+      - MYSQL_CONN="-h127.0.0.1 -u${MYSQL_USER} -p${MYSQL_PASS} --protocol=tcp -P3306"
+      - TZ=Europe/London
+    volumes:
+      - ./database:/config
+    ports:
+      - 5306:3306
+    restart: on-failure
+
+  baseball:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: baseball
+    volumes:
+      - ./baseball.sql:/app/baseball.sql
+      - ./output :/app/output
+    restart: on-failure

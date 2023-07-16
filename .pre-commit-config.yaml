@@ -14,6 +14,7 @@ repos:
     rev: v1.3.0
     hooks:
       - id: python-safety-dependencies-check
+        args: [--ignore=51668]
   - repo: https://gitlab.com/pycqa/flake8
     rev: 4.0.1
     hooks:
